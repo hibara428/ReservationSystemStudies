@@ -13,8 +13,9 @@ class IndexController extends Controller
      */
     public function index()
     {
+        $stores = Store::select(['id', 'name'])->get();
+
         $links = [];
-        $stores = Store::all();
         foreach ($stores as $store) {
             $links[] = [
                 'href' => url('/stores/' . $store->id),

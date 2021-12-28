@@ -15,29 +15,24 @@ class HomeController extends Controller
     public function index()
     {
         $customer = Customer::with([
-                'customerPlan.servicePlan',
-                'customerOptions.serviceOption'
-            ])
+            'customerPlan.servicePlan',
+            'customerOptions.serviceOption'
+        ])
             ->where('user_id', auth()->id())
             ->first();
         if (!$customer) {
-            abort(401);
+            abort(400);
         }
-
-        $customerOptionIds = [];
-        foreach ($customer->customerOptions as $customerOption) {
-            $customerOptionIds[] = $customerOption->serviceOption->id;
-        }
+        $customerOptionIds = $customer->customerOptions->pluck('id')->toArray();
+        $serviceOptions = ServiceOption::select(['id', 'name'])->get();
 
         $customerOptions = [];
-        $serviceOptions = ServiceOption::all();
         foreach ($serviceOptions as $serviceOption) {
             $customerOptions[] = [
-                'name' => $serviceOption['name'] ?? '',
+                'name' => $serviceOption->name,
                 'use' => in_array($serviceOption->id, $customerOptionIds, true),
             ];
         }
-
         return view('home', [
             'customer' => $customer,
             'customerOptions' => $customerOptions,

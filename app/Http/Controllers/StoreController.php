@@ -15,7 +15,15 @@ class StoreController extends Controller
     public function index(Request $request)
     {
         $store_id = $request->route('id');
+        if (!$store_id) {
+            abort(404);
+        }
+
         $store = Store::find($store_id);
+        if (!$store) {
+            abort(400);
+        }
+
         return view('store', [
             'store' => $store,
         ]);

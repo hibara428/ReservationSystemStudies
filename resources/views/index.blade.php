@@ -10,7 +10,7 @@
                 <div class="card-body">
                     <ul>
                         @foreach ($links as $link)
-                            <li><a href="{{ $link['href'] }}">{{ $link['name'] }}</a></li>
+                            <li><a href="{{ $link['href'] ?? '' }}">{{ $link['name'] ?? '' }}</a></li>
                         @endforeach
                     </ul>
                 </div>
