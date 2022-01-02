@@ -2,28 +2,33 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\Store;
+use App\Services\StoreService;
+use Illuminate\Contracts\Support\Renderable;
 
 class IndexController extends Controller
 {
+    /** @var StoreService */
+    protected $storeService;
+
+    /**
+     * Constructor.
+     *
+     * @param StoreService $storeService
+     */
+    public function __construct(StoreService $storeService)
+    {
+        $this->storeService = $storeService;
+    }
+
     /**
      * Show the application dashboard.
      *
-     * @return \Illuminate\Contracts\Support\Renderable
+     * @return Renderable
      */
     public function index()
     {
-        $stores = Store::select(['id', 'name'])->get();
-
-        $links = [];
-        foreach ($stores as $store) {
-            $links[] = [
-                'href' => url('/stores/' . $store->id),
-                'name' => $store->name,
-            ];
-        }
         return view('index', [
-            'links' => $links,
+            'stores' => $this->storeService->getAllStores() ?? [],
         ]);
     }
 }

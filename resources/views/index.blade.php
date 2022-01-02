@@ -9,8 +9,10 @@
 
                 <div class="card-body">
                     <ul>
-                        @foreach ($links as $link)
-                            <li><a href="{{ $link['href'] ?? '' }}">{{ $link['name'] ?? '' }}</a></li>
+                        @foreach ($stores as $store)
+                            <li>
+                                <a href="{{ url('/stores/' . $store->getId()) }}">{{ $store->getName() }}</a>
+                            </li>
                         @endforeach
                     </ul>
                 </div>

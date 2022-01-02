@@ -20,6 +20,7 @@
             </div>
         </div>
 
+        @if ($customerPlan && $customerOptionContracts)
         <div class="row justify-content-center mb-3">
             <div class="col-md-8">
                 <div class="card">
@@ -36,12 +37,12 @@
                             <tbody>
                             <tr>
                                 <td>Plan</td>
-                                <td>{{ $customer->customerPlan->servicePlan->name }}</td>
+                                <td>{{ $customerPlan->getServicePlanName() ?? '-' }}</td>
                             </tr>
-                            @foreach ($customerOptions as $customerOption)
+                            @foreach ($customerOptionContracts as $customerOptionContract)
                                 <tr>
-                                    <td>{{ $customerOption['name'] ?? '' }}</td>
-                                    <td>{{ $customerOption['use'] ? '○' : '' }}</td>
+                                    <td>{{ $customerOptionContract->getName() }}</td>
+                                    <td>{{ $customerOptionContract->isContracted() ? '○' : '' }}</td>
                                 </tr>
                             @endforeach
                             </tbody>
@@ -57,6 +58,7 @@
                     <div class="card-header">{{ __('Customer Information') }}</div>
 
                     <div class="card-body">
+                        @if ($customer)
                         <table class="table">
                             <thead>
                             <tr>
@@ -67,25 +69,27 @@
                             <tbody>
                             <tr>
                                 <td>Id</td>
-                                <td>{{ $customer->id }}</td>
+                                <td>{{ $customer->getId() }}</td>
                             </tr>
                             <tr>
                                 <td>Name</td>
-                                <td>{{ $customer->name }}</td>
+                                <td>{{ $customer->getName() }}</td>
                             </tr>
                             <tr>
                                 <td>E-Mail</td>
-                                <td>{{ $customer->email }}</td>
+                                <td>{{ $customer->getEmail() }}</td>
                             </tr>
                             <tr>
                                 <td>Age</td>
-                                <td>{{ $customer->age }}</td>
+                                <td>{{ $customer->getAge() }}</td>
                             </tr>
                             </tbody>
                         </table>
+                        @endif
                     </div>
                 </div>
             </div>
         </div>
+        @endif
     </div>
 @endsection

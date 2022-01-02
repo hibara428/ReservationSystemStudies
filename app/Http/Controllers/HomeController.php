@@ -2,40 +2,44 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\Customer;
-use App\Models\ServiceOption;
+use App\Services\CustomerService;
+use Illuminate\Contracts\Support\Renderable;
 
 class HomeController extends Controller
 {
+    /** @var CustomerService */
+    protected $customerService;
+
+    /**
+     * Constructor.
+     *
+     * @param CustomerService $customerService
+     */
+    public function __construct(CustomerService $customerService)
+    {
+        $this->customerService = $customerService;
+    }
+
     /**
      * Show the application dashboard.
      *
-     * @return \Illuminate\Contracts\Support\Renderable
+     * @return Renderable
      */
     public function index()
     {
-        $customer = Customer::with([
-            'customerPlan.servicePlan',
-            'customerOptions.serviceOption'
-        ])
-            ->where('user_id', auth()->id())
-            ->first();
-        if (!$customer) {
+        $userId = auth()->id();
+        $customerContract = $this->customerService->findCustomerContractByUserId($userId);
+        if (!$customerContract) {
             abort(400);
         }
-        $customerOptionIds = $customer->customerOptions->pluck('id')->toArray();
-        $serviceOptions = ServiceOption::select(['id', 'name'])->get();
-
-        $customerOptions = [];
-        foreach ($serviceOptions as $serviceOption) {
-            $customerOptions[] = [
-                'name' => $serviceOption->name,
-                'use' => in_array($serviceOption->id, $customerOptionIds, true),
-            ];
+        $serviceOptions = $this->customerService->retrieveServiceOptions();
+        if (!$serviceOptions) {
+            abort(400);
         }
         return view('home', [
-            'customer' => $customer,
-            'customerOptions' => $customerOptions,
+            'customer' => $customerContract->getCustomer(),
+            'customerPlan' => $customerContract->getCustomerPlan(),
+            'customerOptionContracts' => $customerContract->getCustomerOptionContracts($serviceOptions),
         ]);
     }
 }
