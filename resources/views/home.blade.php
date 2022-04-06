@@ -20,7 +20,7 @@
             </div>
         </div>
 
-        @if ($customerPlan && $customerOptionContracts)
+        @if ($customerPlan)
         <div class="row justify-content-center mb-3">
             <div class="col-md-8">
                 <div class="card">
@@ -35,16 +35,20 @@
                             </tr>
                             </thead>
                             <tbody>
-                            <tr>
-                                <td>Plan</td>
-                                <td>{{ $customerPlan->getServicePlanName() ?? '-' }}</td>
-                            </tr>
-                            @foreach ($customerOptionContracts as $customerOptionContract)
+                            @if (!empty($servicePlans))
                                 <tr>
-                                    <td>{{ $customerOptionContract->getName() }}</td>
-                                    <td>{{ $customerOptionContract->isContracted() ? '○' : '' }}</td>
+                                    <td>Plan</td>
+                                    <td>{{ $servicePlans[$customerPlan->getId()] ?? '-' }}</td>
+                                </tr>
+                            @endif
+                            @if (!empty($contractedServiceOptionIds))
+                            @foreach ($serviceOptions as $serviceOption)
+                                <tr>
+                                    <td>{{ $serviceOption->getName() }}</td>
+                                    <td>{{ in_array($serviceOption->getId(), $contractedServiceOptionIds, true) ? '○' : '' }}</td>
                                 </tr>
                             @endforeach
+                            @endif
                             </tbody>
                         </table>
                     </div>

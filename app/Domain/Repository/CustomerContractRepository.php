@@ -8,19 +8,20 @@ use App\Domain\Entity\CustomerContract;
 use App\Domain\Entity\CustomerOption;
 use App\Domain\Entity\CustomerPlan;
 use App\Domain\Entity\ServicePlan;
-use Illuminate\Support\Facades\DB;
+use App\Models\Customer as ModelsCustomer;
+use App\Models\CustomerOption as ModelsCustomerOption;
 
 class CustomerContractRepository implements CustomerContractRepositoryInterface
 {
-    /** @var \App\Models\Customer */
-    private $customerModel;
+    /** @var ModelsCustomer */
+    private $customer;
 
     /**
-     * @param \App\Models\Customer $customerModel
+     * @param ModelsCustomer $customer
      */
-    public function __construct(\App\Models\Customer $customerModel)
+    public function __construct(ModelsCustomer $customer)
     {
-        $this->customerModel = $customerModel;
+        $this->customer = $customer;
     }
 
     /**
@@ -28,41 +29,36 @@ class CustomerContractRepository implements CustomerContractRepositoryInterface
      */
     public function findByUserId(int $userId): ?CustomerContract
     {
-        $record = $this->customerModel->with([
+        $record = $this->customer->with([
             'customerPlan.servicePlan',
             'customerOptions.serviceOption'
         ])
             ->where('user_id', $userId)
             ->first();
-
-        $customer = new Customer(
-            $record->id,
-            $record->name,
-            $record->email,
-            $record->age,
-            $record->user_id
-        );
-        $customerPlan = new CustomerPlan(
-            $record->customerPlan->id,
-            $record->customerPlan->customer_id,
-            $record->customerPlan->service_plan_id,
-            new ServicePlan(
-                $record->customerPlan->servicePlan->id,
-                $record->customerPlan->servicePlan->name,
-            )
-        );
-        $customerOptions = [];
-        foreach ($record->customerOptions as $customerOption) {
-            $customerOptions[] = new CustomerOption(
-                $customerOption->id,
-                $customerOption->customer_id,
-                $customerOption->service_option_id
-            );
+        if (is_null($record)) {
+            return null;
         }
+
         return new CustomerContract(
-            $customer,
-            $customerPlan,
-            $customerOptions
+            new Customer(
+                $record->id,
+                $record->name,
+                $record->email,
+                $record->age,
+                $record->user_id
+            ),
+            new CustomerPlan(
+                $record->customerPlan->id,
+                $record->customerPlan->customer_id,
+                $record->customerPlan->service_plan_id
+            ),
+            $record->customerOptions->map(function (ModelsCustomerOption $customerOption): CustomerOption {
+                return new CustomerOption(
+                    $customerOption->id,
+                    $customerOption->customer_id,
+                    $customerOption->service_option_id
+                );
+            })->toArray(),
         );
     }
 }

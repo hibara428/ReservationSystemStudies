@@ -9,9 +9,9 @@ interface StoreRepositoryInterface
     /**
      * Retrieve all data.
      *
-     * @return array|null
+     * @return array
      */
-    public function all(): ?array;
+    public function all(): array;
 
     /**
      * Find a store.

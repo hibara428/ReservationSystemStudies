@@ -25,10 +25,10 @@ class IndexController extends Controller
      *
      * @return Renderable
      */
-    public function index()
+    public function __invoke()
     {
         return view('index', [
-            'stores' => $this->storeService->getAllStores() ?? [],
+            'stores' => $this->storeService->getAllStores(),
         ]);
     }
 }

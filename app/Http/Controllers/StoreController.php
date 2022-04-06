@@ -28,7 +28,7 @@ class StoreController extends Controller
      *
      * @return Renderable
      */
-    public function index(Request $request)
+    public function __invoke(Request $request)
     {
         $store_id = $request->route('id');
         $store = $this->storeService->getStore($store_id);

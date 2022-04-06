@@ -2,7 +2,7 @@
 
 namespace App\DataProvider;
 
-interface ServiceOptionRepositoryInterface
+interface ServicePlanRepositoryInterface
 {
     /**
      * Retrieve all data.

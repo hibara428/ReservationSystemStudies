@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Domain\Entity\ServicePlan;
 use App\Services\CustomerService;
 use Illuminate\Contracts\Support\Renderable;
 
@@ -25,21 +26,25 @@ class HomeController extends Controller
      *
      * @return Renderable
      */
-    public function index()
+    public function __invoke()
     {
         $userId = auth()->id();
         $customerContract = $this->customerService->findCustomerContractByUserId($userId);
         if (!$customerContract) {
             abort(400);
         }
-        $serviceOptions = $this->customerService->retrieveServiceOptions();
-        if (!$serviceOptions) {
-            abort(400);
-        }
+
         return view('home', [
             'customer' => $customerContract->getCustomer(),
             'customerPlan' => $customerContract->getCustomerPlan(),
-            'customerOptionContracts' => $customerContract->getCustomerOptionContracts($serviceOptions),
+            'servicePlans' => collect($this->customerService->getServicePlans())
+                ->mapWithKeys(function (ServicePlan $servicePlan): array {
+                    return [
+                        $servicePlan->getId() => $servicePlan->getName(),
+                    ];
+                })->toArray(),
+            'serviceOptions' => $this->customerService->getServiceOptions(),
+            'contractedServiceOptionIds' => $customerContract->getServiceOptionIds(),
         ]);
     }
 }

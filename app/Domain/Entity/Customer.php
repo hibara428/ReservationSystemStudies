@@ -70,5 +70,4 @@ class Customer
     {
         return $this->userId;
     }
-
 }

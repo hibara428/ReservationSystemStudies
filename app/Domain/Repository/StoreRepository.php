@@ -4,39 +4,38 @@ namespace App\Domain\Repository;
 
 use App\DataProvider\StoreRepositoryInterface;
 use App\Domain\Entity\Store;
+use App\Models\Store as ModelsStore;
 
 class StoreRepository implements StoreRepositoryInterface
 {
-    /** @var \App\Models\Store */
-    private $storeModel;
+    /** @var ModelsStore */
+    private $modelsStore;
 
     /**
-     * @param \App\Models\Store $storeModel
+     * @param ModelsStore $modelsStore
      */
-    public function __construct(\App\Models\Store $storeModel)
+    public function __construct(ModelsStore $modelsStore)
     {
-        $this->storeModel = $storeModel;
+        $this->modelsStore = $modelsStore;
     }
 
     /**
      * @inheritDoc
      */
-    public function all(): ?array
+    public function all(): array
     {
-        $records = $this->storeModel->get();
-        if ($records === null) {
-            return null;
+        $records = $this->modelsStore->get();
+        if (is_null($records)) {
+            return [];
         }
-        $stores = [];
-        foreach ($records as $record) {
-            $stores[] = new Store(
+        return $records->map(function (ModelsStore $record): Store {
+            return new Store(
                 $record->id,
                 $record->name,
                 $record->description,
                 $record->num_of_compartment
             );
-        }
-        return $stores;
+        })->toArray();
     }
 
     /**
@@ -44,8 +43,8 @@ class StoreRepository implements StoreRepositoryInterface
      */
     public function find(int $id): ?Store
     {
-        $record = $this->storeModel->find($id);
-        if ($record === null) {
+        $record = $this->modelsStore->find($id);
+        if (is_null($record)) {
             return null;
         }
         return new Store(

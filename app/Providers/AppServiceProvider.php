@@ -4,9 +4,11 @@ namespace App\Providers;
 
 use App\DataProvider\CustomerContractRepositoryInterface;
 use App\DataProvider\ServiceOptionRepositoryInterface;
+use App\DataProvider\ServicePlanRepositoryInterface;
 use App\DataProvider\StoreRepositoryInterface;
 use App\Domain\Repository\CustomerContractRepository;
 use App\Domain\Repository\ServiceOptionRepository;
+use App\Domain\Repository\ServicePlanRepository;
 use App\Domain\Repository\StoreRepository;
 use App\Services\CustomerService;
 use App\Services\StoreService;
@@ -23,6 +25,7 @@ class AppServiceProvider extends ServiceProvider
     {
         $this->app->bind(StoreRepositoryInterface::class, StoreRepository::class);
         $this->app->bind(ServiceOptionRepositoryInterface::class, ServiceOptionRepository::class);
+        $this->app->bind(ServicePlanRepositoryInterface::class, ServicePlanRepository::class);
         $this->app->bind(CustomerContractRepositoryInterface::class, CustomerContractRepository::class);
 
         $this->app->bind(StoreService::class);

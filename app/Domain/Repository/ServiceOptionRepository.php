@@ -4,36 +4,38 @@ namespace App\Domain\Repository;
 
 use App\DataProvider\ServiceOptionRepositoryInterface;
 use App\Domain\Entity\ServiceOption;
+use App\Models\ServiceOption as ModelsServiceOption;
 
 class ServiceOptionRepository implements ServiceOptionRepositoryInterface
 {
-    /** @var \App\Models\ServiceOption */
-    private $serviceOptionModel;
+    /** @var ModelsServiceOption */
+    private $serviceOption;
 
     /**
-     * @param \App\Models\ServiceOption $serviceOptionModel
+     * @param ModelsServiceOption $serviceOption
      */
-    public function __construct(\App\Models\ServiceOption $serviceOptionModel)
+    public function __construct(ModelsServiceOption $serviceOption)
     {
-        $this->serviceOptionModel = $serviceOptionModel;
+        $this->serviceOption = $serviceOption;
     }
 
     /**
      * @inheritDoc
      */
-    public function all(): ?array
+    public function all(): array
     {
-        $records = $this->serviceOptionModel->get();
-        if ($records === null) {
-            return null;
+        $records = $this->serviceOption->get();
+        if (is_null($records)) {
+            return [];
         }
-        $serviceOption = [];
+
+        $serviceOptions = [];
         foreach ($records as $record) {
-            $serviceOption[] = new ServiceOption(
+            $serviceOptions[] = new ServiceOption(
                 $record->id,
                 $record->name
             );
         }
-        return $serviceOption;
+        return $serviceOptions;
     }
 }

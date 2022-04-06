@@ -21,9 +21,9 @@ class StoreService
     /**
      * Retrieve all stores.
      *
-     * @return array|null
+     * @return array
      */
-    public function getAllStores(): ?array
+    public function getAllStores(): array
     {
         return $this->storeRepos->all();
     }
@@ -31,11 +31,11 @@ class StoreService
     /**
      * Retrieve a store by store ID.
      *
-     * @param int $store_id
+     * @param int $storeId
      * @return Store|null
      */
-    public function getStore(int $store_id): ?Store
+    public function getStore(int $storeId): ?Store
     {
-        return $this->storeRepos->find($store_id);
+        return $this->storeRepos->find($storeId);
     }
 }

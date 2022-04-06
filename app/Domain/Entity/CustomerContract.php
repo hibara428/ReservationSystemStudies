@@ -40,33 +40,16 @@ class CustomerContract
     }
 
     /**
+     * Gets contracted service option list.
+     *
      * @return array
      */
-    public function getContractedCustomerOptionIds(): array
+    public function getServiceOptionIds(): array
     {
         $customerOptionIds = [];
         foreach ($this->customerOptions as $customerOption) {
             $customerOptionIds[] = $customerOption->getServiceOptionId();
         }
         return $customerOptionIds;
-    }
-
-    /**
-     * @param ServiceOption[] $serviceOptions
-     * @return CustomerOptionContract[]
-     */
-    public function getCustomerOptionContracts(array $serviceOptions): array
-    {
-        $contractOptions = [];
-        $contractedOptionIds = $this->getContractedCustomerOptionIds();
-        foreach ($serviceOptions as $serviceOption) {
-            $isContracted = in_array($serviceOption->getId(), $contractedOptionIds, true);
-            $contractOptions[] = new CustomerOptionContract(
-                $serviceOption->getId(),
-                $serviceOption->getName(),
-                $isContracted
-            );
-        }
-        return $contractOptions;
     }
 }
