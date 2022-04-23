@@ -1,0 +1,41 @@
+on:
+  push:
+    branches:
+    - main
+  pull_request:
+    branches:
+    - main
+jobs:
+  ut:
+    name: Unit test
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v3
+    - name: Setup PHP (if using "act" on local environments)
+      if: ${{ env.ACT }}
+      uses: shivammathur/setup-php@v2
+      with:
+        php-version: '8.1'
+    - name: Cache "vendor" directory
+      id: cache
+      uses: actions/cache@v3
+      with:
+        path: ./vendor
+        key: ${{ runner.os }}-composer-${{ hashFiles('**/composer.lock') }}
+        restore-keys: |
+          ${{ runner.os }}-composer-
+    - name: Run "composer install" (if "vendor" is NOT cached)
+      if: steps.cache.outputs.cache-hit != 'true'
+      run: composer install -n --prefer-dist
+    - name: Install docker (if using "act" on local environments)
+      if: ${{ env.ACT }}
+      run: |
+        apt-get update
+        apt-get install -y docker
+    - name: Build docker image with Laravel sail
+      run: ./vendor/bin/sail build
+    - name: Execute tests (Unit and Feature tests) via PHPUnit with Laravel sail
+      run: |
+        ./vendor/bin/sail up -d
+        ./vendor/bin/sail test
