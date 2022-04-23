@@ -1,0 +1,11 @@
+.actrc
+.dockerignore
+.editorconfig
+.env
+.git*
+.phpunit.result.cache
+docker-compose.yml
+docs
+node_modules
+README.md
+vendor

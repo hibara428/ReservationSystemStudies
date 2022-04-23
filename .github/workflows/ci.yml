@@ -1,3 +1,4 @@
+name: ci
 on:
   push:
     branches:
@@ -17,6 +18,11 @@ jobs:
       uses: shivammathur/setup-php@v2
       with:
         php-version: '8.1'
+    - name: Install docker (if using "act" on local environments)
+      if: ${{ env.ACT }}
+      run: |
+        apt-get update
+        apt-get install -y docker
     - name: Cache "vendor" directory
       id: cache
       uses: actions/cache@v3
@@ -28,14 +34,9 @@ jobs:
     - name: Run "composer install" (if "vendor" is NOT cached)
       if: steps.cache.outputs.cache-hit != 'true'
       run: composer install -n --prefer-dist
-    - name: Install docker (if using "act" on local environments)
-      if: ${{ env.ACT }}
-      run: |
-        apt-get update
-        apt-get install -y docker
-    - name: Build docker image with Laravel sail
-      run: ./vendor/bin/sail build
-    - name: Execute tests (Unit and Feature tests) via PHPUnit with Laravel sail
-      run: |
-        ./vendor/bin/sail up -d
-        ./vendor/bin/sail test
+    - name: Set up .env
+      run: php -r "copy('.env.testing', '.env');"
+    - name: Run containers with Laravel Sail
+      run: ./vendor/bin/sail up -d --build
+    - name: Execute unit and feature tests via PHPUnit with Laravel Sail
+      run: ./vendor/bin/sail test
