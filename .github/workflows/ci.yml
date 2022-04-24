@@ -37,6 +37,8 @@ jobs:
     - name: Set up .env
       run: php -r "copy('.env.testing', '.env');"
     - name: Run containers with Laravel Sail
-      run: ./vendor/bin/sail up -d --build
+      run: |
+        docker pull hibara428/sail:8.1 --platform linux/amd64
+        ./vendor/bin/sail up -d
     - name: Execute unit and feature tests via PHPUnit with Laravel Sail
       run: ./vendor/bin/sail test
