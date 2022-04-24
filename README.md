@@ -1,5 +1,7 @@
 # ReservationSystemStudies
 
+![ci](https://github.com/hibara428/ReservationSystemStudies/actions/workflows/ci.yml/badge.svg)
+
 A reservation system project to learn Laravel.
 
 ## Introduction
