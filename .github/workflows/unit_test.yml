@@ -1,28 +1,13 @@
-name: ci
+name: unit_test
 on:
   push:
-    branches:
-    - main
   pull_request:
-    branches:
-    - main
 jobs:
-  ut:
-    name: Unit test
+  unit_test:
     runs-on: ubuntu-latest
     steps:
     - name: Checkout
       uses: actions/checkout@v3
-    - name: Setup PHP (if using "act" on local environments)
-      if: ${{ env.ACT }}
-      uses: shivammathur/setup-php@v2
-      with:
-        php-version: '8.1'
-    - name: Install docker (if using "act" on local environments)
-      if: ${{ env.ACT }}
-      run: |
-        apt-get update
-        apt-get install -y docker
     - name: Cache "vendor" directory
       id: cache
       uses: actions/cache@v3
@@ -36,9 +21,7 @@ jobs:
       run: composer install -n --prefer-dist
     - name: Set up .env
       run: php -r "copy('.env.testing', '.env');"
-    - name: Run containers with Laravel Sail
-      run: |
-        docker pull hibara428/sail:8.1 --platform linux/amd64
-        ./vendor/bin/sail up -d
+    - name: Pull a docker image for dev
+      run: docker pull hibara428/reservation_system_studies:dev
     - name: Execute unit and feature tests via PHPUnit with Laravel Sail
-      run: ./vendor/bin/sail test
+      run: ./vendor/bin/sail up -d && ./vendor/bin/sail test
