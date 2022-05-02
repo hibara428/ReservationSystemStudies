@@ -3,6 +3,7 @@ services:
     app:
         build:
             context: .
+            dockerfile: ./infra/docker/Dockerfile
             args:
                 WWWGROUP: '${WWWGROUP:-1000}'
         image: hibara428/reservation_system_studies:1.0.0

@@ -25,7 +25,6 @@ RUN apt-get update \
     php8.1-imap php8.1-mysql php8.1-mbstring \
     php8.1-xml php8.1-zip php8.1-bcmath php8.1-soap \
     php8.1-intl php8.1-readline \
-    php8.1-xdebug \
     && php -r "readfile('https://getcomposer.org/installer');" | php -- --install-dir=/usr/bin/ --filename=composer \
     && curl -sL https://deb.nodesource.com/setup_$NODE_VERSION.x | bash - \
     && apt-get install -y nodejs \
@@ -41,14 +40,17 @@ RUN apt-get update \
 RUN setcap "cap_net_bind_service=+ep" /usr/bin/php8.1
 RUN groupadd --force -g $WWWGROUP sail
 RUN useradd -ms /bin/bash --no-user-group -g $WWWGROUP -u 1337 sail
-COPY ./docker/8.1/supervisord.conf /etc/supervisor/conf.d/supervisord.conf
-COPY ./docker/8.1/php.ini /etc/php/8.1/cli/conf.d/99-sail.ini
+COPY ./infra/docker/supervisord.conf /etc/supervisor/conf.d/supervisord.conf
+COPY ./infra/docker/php.ini /etc/php/8.1/cli/conf.d/99-sail.ini
 
 # Build app
+COPY --chmod=$WWWUSER:$WWWGROUP . /var/www/html
 WORKDIR /var/www/html
+RUN chmod -R 777 /var/www/html/storage \
+    && composer install --no-dev
 
 # Entry point
-COPY ./docker/8.1/start-container /usr/local/bin/start-container
+COPY ./infra/docker/start-container /usr/local/bin/start-container
 RUN chmod +x /usr/local/bin/start-container
 
 EXPOSE 8000
