@@ -1,0 +1,42 @@
+---
+AWSTemplateFormatVersion: 2010-09-09
+Description: ECS cluster
+
+Parameters:
+  EnvironmentName:
+    Type: String
+    Description: Environment name - dev or prod
+    Default: dev
+    AllowedValues:
+      - dev
+      - prod
+    ConstraintDescription: Specify either dev or prod
+
+Resources:
+  EcsCluster:
+    Type: AWS::ECS::Cluster
+    Properties:
+      ClusterName: !Ref AWS::StackName
+
+Outputs:
+  Name:
+    Description: Fargate Stack Name
+    Value: !Ref AWS::StackName
+    Export:
+      Name: !Sub ${AWS::StackName}-Name
+
+  EnvironmentName:
+    Description: Environment Name
+    Value: !Ref EnvironmentName
+    Export:
+      Name: !Sub ${AWS::StackName}-EnvironmentName
+
+  EcsClusterName:
+    Value: !Ref EcsCluster
+    Export:
+      Name: !Sub ${AWS::StackName}-EcsClusterName
+
+  EcsClusterArn:
+    Value: !GetAtt EcsCluster.Arn
+    Export:
+      Name: !Sub ${AWS::StackName}-EcsClusterArn

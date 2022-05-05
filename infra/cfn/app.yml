@@ -1,0 +1,526 @@
+---
+AWSTemplateFormatVersion: 2010-09-09
+Description: |
+  Creates application base infrastructures.
+  - VPC + ECS(base) + ALB + RDS
+
+Parameters:
+  # Common parameters
+  EnvironmentName:
+    Type: String
+    Description: Environment name - dev or prod
+    Default: dev
+    AllowedValues:
+      - dev
+      - prod
+    ConstraintDescription: Specify either dev or prod
+  TemplateBucket:
+    Type: String
+    Default: reservation-system-studies-cfn-templates
+    Description: The template bucket for the CloudFormation templates
+  ALBIngressPort:
+    Description: The ALB ingress port used by security groups
+    Type: Number
+    MinValue: 0
+    MaxValue: 65535
+    ConstraintDescription: TCP ports must be between 0 - 65535
+    Default: 80
+  Subdomain:
+    Type: String
+    Description: The subdomain
+    Default: reservation
+  HostedZoneId:
+    Type: AWS::Route53::HostedZone::Id
+    Description: The Route 53 Hosted Zone ID
+  HostedZoneName:
+    Type: String
+    Description: The optional Amazon Route 53 Hosted Zone Name for the optional load balancer alias record - do not include a period at the end
+    AllowedPattern: "(^$|^((?!-)[A-Za-z0-9-]{1,63}(?<!-)\\.)+[A-Za-z]{2,6}$)" # Allow for a blank or a domain name
+    ConstraintDescription: Please enter a valid Route 53 Hosted Zone Name
+
+  # vpc.cfn.yml parameters
+  AvailabilityZone1:
+    Description: The first availability zone in the region
+    Type: AWS::EC2::AvailabilityZone::Name
+    ConstraintDescription: Must be a valid availability zone
+  AvailabilityZone2:
+    Description: The second availability zone in the region
+    Type: AWS::EC2::AvailabilityZone::Name
+    ConstraintDescription: Must be a valid availability zone
+
+  # rds.cfn.yml parameters
+  DatabaseUser:
+    Default: admin
+    Type: String
+    Description: Database admin account name
+    MinLength: 5
+    MaxLength: 16
+    AllowedPattern: "[a-zA-Z][a-zA-Z0-9]*"
+    ConstraintDescription: Name must begin with a letter and contain only alphanumeric characters
+  DatabasePassword:
+    NoEcho: true
+    Type: String
+    Description: Database admin account password
+    MinLength: 6
+    MaxLength: 41
+    AllowedPattern: "[a-zA-Z0-9]*"
+    ConstraintDescription: Password must contain only alphanumeric characters
+  DatabaseName:
+    Default: testdb
+    Type: String
+    Description: Database name
+    MinLength: 1
+    MaxLength: 30
+    AllowedPattern: "[a-zA-Z][a-zA-Z0-9]*"
+    ConstraintDescription: Name must begin with a letter and contain only alphanumeric characters
+  DatabaseEngine:
+    Default: mysql
+    Type: String
+    Description: Database engines - MySQL
+    ConstraintDescription: Choose an engine from the drop down
+    AllowedValues:
+      - mysql
+  EncryptionAtRest:
+    Default: false
+    Type: String
+    Description: The optional flag for encryption at rest (db.t2.small and above)
+    ConstraintDescription: Only true or false are allowed
+    AllowedValues:
+      - true
+      - false
+  DatabaseSize:
+    Default: 5
+    Type: String
+    Description: Database storage size in gigabytes (GB) - Not applicable for Aurora
+    MinLength: 1
+    AllowedPattern: "[5-9]|[1-9][0-9]+"
+    ConstraintDescription: Enter a size of at least 5 GB
+  DatabaseInstanceClass:
+    Default: db.t2.small
+    Type: String
+    Description: "Database instance class, e.g. db.t2.micro (free tier) - Engine support: https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/Concepts.DBInstanceClass.html"
+    ConstraintDescription: DB instance class not supported
+    AllowedValues:
+      - db.t2.micro
+      - db.t2.small
+      - db.t2.medium
+      - db.t2.large
+      - db.t2.xlarge
+      - db.t2.2xlarge
+      - db.m4.large
+      - db.m4.xlarge
+      - db.m4.2xlarge
+      - db.m4.4xlarge
+      - db.m4.10xlarge
+      - db.m4.16xlarge
+      - db.r4.large
+      - db.r4.xlarge
+      - db.r4.2xlarge
+      - db.r4.4xlarge
+      - db.r4.8xlarge
+      - db.r4.16xlarge
+
+  # ecs-task.cfn.yml parameters
+  AppIngressPort:
+    Description: The application ingress port used by security groups
+    Type: Number
+    MinValue: 0
+    MaxValue: 65535
+    ConstraintDescription: TCP ports must be between 0 - 65535
+    Default: 80
+  DockerRepositoryUri:
+    Type: String
+    Description: The URI of docker repository
+  DockerImageTag:
+    Type: String
+    Description: The tag of docker image.
+    Default: latest
+  ContainerCpu:
+    Type: Number
+    Description: "Amount of CPU for the container - options available: https://aws.amazon.com/fargate/pricing/"
+    Default: 256
+    MinValue: 256
+    MaxValue: 4096
+    ConstraintDescription: "Value must be between 256 and 4096 - see: https://docs.aws.amazon.com/AmazonECS/latest/developerguide/task_definition_parameters.html#task_size"
+  ContainerMemory:
+    Type: Number
+    Description: "Amount of memory for the container - options available: https://aws.amazon.com/fargate/pricing/"
+    Default: 512
+    MinValue: 512
+    MaxValue: 30720
+    ConstraintDescription: "Value must be between 512 and 30720 - see: https://aws.amazon.com/fargate/pricing/"
+  ContainerLogRetentionInDays:
+    Type: Number
+    Default: 7
+    Description: Number of days to retain container logs
+  AppKey:
+    Type: String
+    Description: The environment value of "APP_KEY"
+
+  # fargate-service.cfn.yml parameters
+  AppProtocol:
+    Type: String
+    Description: The application server protocol
+    Default: HTTP
+    AllowedValues:
+      - HTTP
+      - HTTPS
+    ConstraintDescription: Specify either HTTTP or HTTPS
+  HealthCheckPath:
+    Type: String
+    Description: The path for the Application Load Balancer health check
+    Default: /
+    MinLength: 1
+    MaxLength: 255
+    ConstraintDescription: Value must be between 1 and 255 characters
+
+  ServiceScaleEvaluationPeriods:
+    Description: The number of periods over which data is compared to the specified threshold
+    Type: Number
+    Default: 2
+    MinValue: 2
+  ServiceCpuScaleOutThreshold:
+    Type: Number
+    Description: Average CPU % value to trigger auto scaling out
+    Default: 50
+    MinValue: 0
+    MaxValue: 100
+    ConstraintDescription: Value must be between 0 and 100
+  ServiceCpuScaleInThreshold:
+    Type: Number
+    Description: Average CPU % value to trigger auto scaling down
+    Default: 25
+    MinValue: 0
+    MaxValue: 100
+    ConstraintDescription: Value must be between 0 and 100
+  TaskMinContainerCount:
+    Type: Number
+    Description: Minimum number of containers to run for the service
+    Default: 1
+    MinValue: 1
+    ConstraintDescription: Value must be at least one
+  TaskMaxContainerCount:
+    Type: Number
+    Description: Maximum number of containers to run for the service when auto scaling out
+    Default: 2
+    MinValue: 1
+    ConstraintDescription: Value must be at least one
+
+  # alb.cfn.yml parameters
+  LoadBalancerDomainName:
+    Type: String
+    Description: Optional domain name to create an Amazon Route 53 alias record for the load balancer
+    Default: ""
+    AllowedPattern: "(^$|^((?!-)[A-Za-z0-9-]{1,63}(?<!-)\\.)+[A-Za-z]{2,6}$)" # Allow for a blank or a domain name
+    ConstraintDescription: Please enter a valid domain name
+
+Metadata:
+  AWS::CloudFormation::Interface:
+    ParameterGroups:
+      - Label:
+          default: Environment
+        Parameters:
+          - EnvironmentName
+      - Label:
+          default: Region Availability Zones
+        Parameters:
+          - AvailabilityZone1
+          - AvailabilityZone2
+      - Label:
+          default: Database
+        Parameters:
+          - DatabaseEngine
+          - DatabaseInstanceClass
+          - DatabaseUser
+          - DatabasePassword
+          - DatabaseName
+          - DatabaseSize
+          - EncryptionAtRest
+      - Label:
+          default: Application Global
+        Parameters:
+          - AppIngressPort
+          - AppProtocol
+      - Label:
+          default: Initial Service
+        Parameters:
+          - HealthCheckPath
+          - DockerImageTag
+          - ContainerCpu
+          - ContainerMemory
+          - ServiceScaleEvaluationPeriods
+          - ServiceCpuScaleOutThreshold
+          - ServiceCpuScaleInThreshold
+          - TaskMinContainerCount
+          - TaskMaxContainerCount
+          - ContainerLogRetentionInDays
+          - AppKey
+      - Label:
+          default: Load Balancer
+        Parameters:
+          - ALBIngressPort
+          - HostedZoneName
+          - LoadBalancerDomainName
+    ParameterLabels:
+      AvailabilityZone1:
+        default: Availability Zone 1
+      AvailabilityZone2:
+        default: Availability Zone 2
+      ALBIngressPort:
+        default: Port
+      AppIngressPort:
+        default: Port
+      AppProtocol:
+        default: Protocol
+      TemplateBucket:
+        default: CloudFormation Bucket
+      EnvironmentName:
+        default: Environment
+      HealthCheckPath:
+        default: Health Check Path
+      ContainerCpu:
+        default: CPU
+      ContainerMemory:
+        default: Memory
+      ServiceScaleEvaluationPeriods:
+        default: Scale Periods
+      ServiceCpuScaleOutThreshold:
+        default: Scale Out CPU
+      ServiceCpuScaleInThreshold:
+        default: Scale In CPU
+      TaskMinContainerCount:
+        default: Min Containers
+      TaskMaxContainerCount:
+        default: Max Containers
+      ContainerLogRetentionInDays:
+        default: Log Retention
+      AppKey:
+        default: "env: APP_KEY"
+      HostedZoneName:
+        default: Hosted Zone
+      LoadBalancerDomainName:
+        default: Domain
+      DatabaseUser:
+        default: User
+      DatabasePassword:
+        default: Password
+      DatabaseName:
+        default: Name
+      DatabaseSize:
+        default: Size
+      DatabaseEngine:
+        default: Engine
+      EncryptionAtRest:
+        default: Encryption at Rest
+      DatabaseInstanceClass:
+        default: Instance Type
+
+Conditions:
+  IsProd: !Equals [ !Ref EnvironmentName, prod ]
+
+Resources:
+  #----------------------------------------------
+  # VPC
+  #----------------------------------------------
+  VpcStack:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: !Sub https://s3.amazonaws.com/${TemplateBucket}/templates/vpc.cfn.yml
+      Parameters:
+        AvailabilityZone1: !Ref AvailabilityZone1
+        AvailabilityZone2: !Ref AvailabilityZone2
+        SingleNatGateway: !If [ IsProd, false, true ]
+
+  #----------------------------------------------
+  # RDS
+  #----------------------------------------------
+  RdsStack:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: !Sub https://s3.amazonaws.com/${TemplateBucket}/templates/rds.cfn.yml
+      Parameters:
+        EnvironmentName: !Ref EnvironmentName
+        NetworkStackName: !GetAtt VpcStack.Outputs.Name
+        DatabaseUser: !Ref DatabaseUser
+        DatabasePassword: !Ref DatabasePassword
+        DatabaseName: !Ref DatabaseName
+        DatabaseSize: !Ref DatabaseSize
+        DatabaseEngine: !Ref DatabaseEngine
+        EncryptionAtRest: !Ref EncryptionAtRest
+        DatabaseInstanceClass: !Ref DatabaseInstanceClass
+        DatabaseSecurityGroups:
+          - !Ref DatabaseSecurityGroup
+
+  #----------------------------------------------
+  # ECS
+  #----------------------------------------------
+  EcsClusterStack:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: !Sub https://s3.amazonaws.com/${TemplateBucket}/templates/ecs-cluster.cfn.yml
+      Parameters:
+        EnvironmentName: !Ref EnvironmentName
+
+  EcsTaskStack:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: !Sub https://s3.amazonaws.com/${TemplateBucket}/templates/ecs-task.cfn.yml
+      Parameters:
+        EnvironmentName: !Ref EnvironmentName
+        NetworkStackName: !GetAtt VpcStack.Outputs.Name
+        DatabaseStackName: !GetAtt RdsStack.Outputs.Name
+        AppIngressPort: !Ref AppIngressPort
+        DockerRepositoryUri: !Ref DockerRepositoryUri
+        DockerImageTag: !Ref DockerImageTag
+        ContainerCpu: !Ref ContainerCpu
+        ContainerMemory: !Ref ContainerMemory
+        ContainerLogRetentionInDays: !Ref ContainerLogRetentionInDays
+        AppKey: !Ref AppKey
+
+  FargateServiceStack:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: !Sub https://s3.amazonaws.com/${TemplateBucket}/templates/fargate-service.cfn.yml
+      Parameters:
+        EnvironmentName: !Ref EnvironmentName
+        NetworkStackName: !GetAtt VpcStack.Outputs.Name
+        EcsClusterStackName: !GetATt EcsClusterStack.Outputs.Name
+        EcsTaskStackName: !GetAtt EcsTaskStack.Outputs.Name
+        AppProtocol: !Ref AppProtocol
+        AppIngressPort: !Ref AppIngressPort
+        AppSecurityGroups:
+          - !Ref AppSecurityGroup
+        HealthCheckPath: !Ref HealthCheckPath
+        ServiceScaleEvaluationPeriods: !Ref ServiceScaleEvaluationPeriods
+        ServiceCpuScaleOutThreshold: !Ref ServiceCpuScaleOutThreshold
+        ServiceCpuScaleInThreshold: !Ref ServiceCpuScaleInThreshold
+        TaskMinContainerCount: !Ref TaskMinContainerCount
+        TaskMaxContainerCount: !Ref TaskMaxContainerCount
+
+  #----------------------------------------------
+  # ALB
+  #----------------------------------------------
+  AlbStack:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: !Sub https://s3.amazonaws.com/${TemplateBucket}/templates/alb.cfn.yml
+      Parameters:
+        EnvironmentName: !Ref EnvironmentName
+        NetworkStackName: !GetAtt VpcStack.Outputs.Name
+        SSLCertificateArn: !GetAtt AcmStack.Outputs.SSLCertificateArn
+        SecurityGroups:
+          - !Ref ALBSecurityGroup
+        HostedZoneName: !Ref HostedZoneName
+        LoadBalancerDomainName: !Ref LoadBalancerDomainName
+
+  #----------------------------------------------
+  # ACM
+  #----------------------------------------------
+  AcmStack:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: !Sub https://s3.amazonaws.com/${TemplateBucket}/templates/acm.cfn.yml
+      Parameters:
+        EnvironmentName: !Ref EnvironmentName
+        Subdomain: !Ref Subdomain
+        HostedZoneId: !Ref HostedZoneId
+        HostedZoneName: !Ref HostedZoneName
+
+  #----------------------------------------------
+  # Security group
+  #----------------------------------------------
+  AppSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Enable access from ELB to app
+      VpcId: !GetAtt VpcStack.Outputs.VPCId
+      SecurityGroupIngress:
+      - SourceSecurityGroupId: !Ref ALBSecurityGroup
+        IpProtocol: tcp
+        ToPort: !Ref AppIngressPort
+        FromPort: !Ref AppIngressPort
+      Tags:
+      - Key: Name
+        Value: !Sub "${AWS::StackName}-AppSecurityGroup"
+  AppSecurityGroupFromELBIngress:
+    Type: AWS::EC2::SecurityGroupIngress
+    Properties:
+      GroupId: !Ref AppSecurityGroup
+      IpProtocol: tcp
+      ToPort: !Ref AppIngressPort
+      FromPort: !Ref AppIngressPort
+      SourceSecurityGroupId: !Ref ALBSecurityGroup
+  DatabaseSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Enable access to the RDS DB
+      VpcId: !GetAtt VpcStack.Outputs.VPCId
+      SecurityGroupEgress:
+      - CidrIp: 0.0.0.0/0
+        IpProtocol: tcp
+        ToPort: 3306
+        FromPort: 3306
+      Tags:
+      - Key: Name
+        Value: !Sub "${AWS::StackName}-DatabaseSecurityGroup"
+  ALBSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Enable HTTP/HTTPs ingress
+      VpcId: !GetAtt VpcStack.Outputs.VPCId
+      SecurityGroupIngress:
+      - CidrIp: 0.0.0.0/0
+        IpProtocol: tcp
+        ToPort: !Ref ALBIngressPort
+        FromPort: !Ref ALBIngressPort
+      Tags:
+      - Key: Name
+        Value: !Sub "${AWS::StackName}-AlbSecurityGroup"
+
+Outputs:
+  VpcStackName:
+    Value: !GetAtt VpcStack.Outputs.Name
+    Export:
+      Name: !Sub ${AWS::StackName}-VpcStackName
+
+  RdsStackName:
+    Value: !GetAtt RdsStack.Outputs.Name
+    Export:
+      Name: !Sub ${AWS::StackName}-DatabaseStackName
+
+  EcsClusterStackName:
+    Value: !GetAtt EcsClusterStack.Outputs.Name
+    Export:
+      Name: !Sub ${AWS::StackName}-EcsClusterStackName
+
+  EcsTaskStackName:
+    Value: !GetAtt EcsTaskStack.Outputs.Name
+    Export:
+      Name: !Sub ${AWS::StackName}-EcsTaskStackName
+
+  FargateServiceStackName:
+    Value: !GetAtt FargateServiceStack.Outputs.Name
+    Export:
+      Name: !Sub ${AWS::StackName}-FargateServiceStackName
+
+  AlbStackName:
+    Value: !GetAtt AlbStack.Outputs.Name
+    Export:
+      Name: !Sub ${AWS::StackName}-AlbStackName
+
+  AcmStackName:
+    Value: !GetAtt AcmStack.Outputs.Name
+    Export:
+      Name: !Sub ${AWS::StackName}-AcmStackName
+
+  AppSecurityGroup:
+    Description: Security group ID for app behind ALB
+    Value: !Ref AppSecurityGroup
+    Export:
+      Name: !Sub "${AWS::StackName}-AppSecurityGroupID"
+
+  ELBSecurityGroup:
+    Description: Security group ID for Internet-facing ALB
+    Value: !Ref ALBSecurityGroup
+    Export:
+      Name: !Sub "${AWS::StackName}-ALBSecurityGroupID"

@@ -1,0 +1,286 @@
+---
+AWSTemplateFormatVersion: 2010-09-09
+Description: Fargate
+
+Parameters:
+  EnvironmentName:
+    Type: String
+    Description: Environment name - dev or prod
+    Default: dev
+    AllowedValues:
+      - dev
+      - prod
+    ConstraintDescription: Specify either dev or prod
+
+  NetworkStackName:
+    Type: String
+    Description: Name of an active CloudFormation stack that contains networking resources
+    MinLength: 1
+    MaxLength: 255
+    AllowedPattern: "^[a-zA-Z][-a-zA-Z0-9]*$"
+
+  EcsClusterStackName:
+    Type: String
+    Description: Name of an active CloudFormation stack that contains ECS cluster resources
+    MinLength: 1
+    MaxLength: 255
+    AllowedPattern: "^[a-zA-Z][-a-zA-Z0-9]*$"
+
+  EcsTaskStackName:
+    Type: String
+    Description: Name of an active CloudFormation stack that contains ECS task definition resources
+    MinLength: 1
+    MaxLength: 255
+    AllowedPattern: "^[a-zA-Z][-a-zA-Z0-9]*$"
+
+  AppProtocol:
+    Type: String
+    Description: The application server protocol
+    Default: HTTP
+    AllowedValues:
+      - HTTP
+      - HTTPS
+    ConstraintDescription: Specify either HTTTP or HTTPS
+
+  AppIngressPort:
+    Description: The application ingress port used by security groups
+    Type: Number
+    MinValue: 0
+    MaxValue: 65535
+    ConstraintDescription: TCP ports must be between 0 - 65535
+    Default: 80
+
+  AppSecurityGroups:
+    Type: List<AWS::EC2::SecurityGroup::Id>
+    Description: The security group for ECS service.
+
+  HealthCheckPath:
+    Type: String
+    Description: The path for the Application Load Balancer health check
+    Default: /
+    MinLength: 1
+    MaxLength: 255
+    ConstraintDescription: Value must be between 1 and 255 characters
+
+  ServiceScaleEvaluationPeriods:
+    Description: The number of periods over which data is compared to the specified threshold
+    Type: Number
+    Default: 2
+    MinValue: 2
+
+  ServiceCpuScaleOutThreshold:
+    Type: Number
+    Description: Average CPU value to trigger auto scaling out
+    Default: 50
+    MinValue: 0
+    MaxValue: 100
+    ConstraintDescription: Value must be between 0 and 100
+
+  ServiceCpuScaleInThreshold:
+    Type: Number
+    Description: Average CPU value to trigger auto scaling in
+    Default: 25
+    MinValue: 0
+    MaxValue: 100
+    ConstraintDescription: Value must be between 0 and 100
+
+  TaskMinContainerCount:
+    Type: Number
+    Description: Minimum number of containers to run for the service
+    Default: 1
+    MinValue: 1
+    ConstraintDescription: Value must be at least one
+
+  TaskMaxContainerCount:
+    Type: Number
+    Description: Maximum number of containers to run for the service when auto scaling out
+    Default: 2
+    MinValue: 1
+    ConstraintDescription: Value must be at least one
+
+Resources:
+  #----------------------------------------------
+  # ECS service
+  #----------------------------------------------
+  FargateService:
+    Type: AWS::ECS::Service
+    Properties:
+      Cluster:
+        Fn::ImportValue: !Sub ${EcsClusterStackName}-EcsClusterName
+      ServiceName: !Ref AWS::StackName
+      DesiredCount: !Ref TaskMinContainerCount
+      LaunchType: FARGATE
+      TaskDefinition:
+        Fn::ImportValue: !Sub ${EcsTaskStackName}-TaskDefinition
+      LoadBalancers:
+        - ContainerName: !Ref AWS::StackName
+          ContainerPort: !Ref AppIngressPort
+          TargetGroupArn: !Ref TargetGroup
+      NetworkConfiguration:
+        AwsvpcConfiguration:
+          AssignPublicIp: DISABLED
+          SecurityGroups: !Ref AppSecurityGroups
+          Subnets:
+            - Fn::ImportValue: !Sub ${NetworkStackName}-PrivateSubnet1ID
+            - Fn::ImportValue: !Sub ${NetworkStackName}-PrivateSubnet2ID
+
+  #----------------------------------------------
+  # ECS auto scaling
+  #----------------------------------------------
+  ServiceScalingTarget:
+    Type: AWS::ApplicationAutoScaling::ScalableTarget
+    Properties:
+      MinCapacity: !Ref TaskMinContainerCount
+      MaxCapacity: !Ref TaskMaxContainerCount
+      ResourceId: !Sub
+        - service/${EcsClusterName}/${EcsServiceName}
+        - EcsClusterName:
+            Fn::ImportValue: !Sub ${EcsClusterStackName}-EcsClusterName
+          EcsServiceName: !GetAtt FargateService.Name
+      RoleARN: !GetAtt ServiceAutoScalingRole.Arn
+      ScalableDimension: ecs:service:DesiredCount
+      ServiceNamespace: ecs
+
+  ServiceScaleOutPolicy:
+    Type: AWS::ApplicationAutoScaling::ScalingPolicy
+    Properties:
+      PolicyName: ScaleOutPolicy
+      PolicyType: StepScaling
+      ScalingTargetId: !Ref ServiceScalingTarget
+      StepScalingPolicyConfiguration:
+        AdjustmentType: ChangeInCapacity
+        Cooldown: 60
+        MetricAggregationType: Average
+        StepAdjustments:
+          - ScalingAdjustment: 1
+            MetricIntervalLowerBound: 0
+
+  ServiceScaleInPolicy:
+    Type: AWS::ApplicationAutoScaling::ScalingPolicy
+    Properties:
+      PolicyName: ScaleInPolicy
+      PolicyType: StepScaling
+      ScalingTargetId: !Ref ServiceScalingTarget
+      StepScalingPolicyConfiguration:
+        AdjustmentType: ChangeInCapacity
+        Cooldown: 60
+        MetricAggregationType: Average
+        StepAdjustments:
+          - ScalingAdjustment: -1
+            MetricIntervalUpperBound: 0
+
+  ServiceScaleOutAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      EvaluationPeriods: !Ref ServiceScaleEvaluationPeriods
+      Statistic: Average
+      TreatMissingData: notBreaching
+      Threshold: !Ref ServiceCpuScaleOutThreshold
+      AlarmDescription: Alarm to add capacity if CPU is high
+      Period: 60
+      AlarmActions:
+        - !Ref ServiceScaleOutPolicy
+      Namespace: AWS/ECS
+      Dimensions:
+        - Name: ClusterName
+          Value:
+            Fn::ImportValue: !Sub ${EcsClusterStackName}-EcsClusterName
+        - Name: ServiceName
+          Value: !GetAtt FargateService.Name
+      ComparisonOperator: GreaterThanThreshold
+      MetricName: CPUUtilization
+
+  ServiceScaleInAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      EvaluationPeriods: !Ref ServiceScaleEvaluationPeriods
+      Statistic: Average
+      TreatMissingData: notBreaching
+      Threshold: !Ref ServiceCpuScaleInThreshold
+      AlarmDescription: Alarm to reduce capacity if container CPU is low
+      Period: 300
+      AlarmActions:
+        - !Ref ServiceScaleInPolicy
+      Namespace: AWS/ECS
+      Dimensions:
+        - Name: ClusterName
+          Value:
+            Fn::ImportValue: !Sub ${EcsClusterStackName}-EcsClusterName
+        - Name: ServiceName
+          Value: !GetAtt FargateService.Name
+      ComparisonOperator: LessThanThreshold
+      MetricName: CPUUtilization
+
+  ServiceAutoScalingRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: application-autoscaling.amazonaws.com
+            Action: sts:AssumeRole
+      Path: /
+      Policies:
+        - PolicyName: service-autoscaling
+          PolicyDocument:
+            Statement:
+              - Effect: Allow
+                Action:
+                  - application-autoscaling:*
+                  - cloudwatch:DescribeAlarms
+                  - cloudwatch:PutMetricAlarm
+                  - ecs:DescribeServices
+                  - ecs:UpdateService
+                Resource: '*'
+
+  #----------------------------------------------
+  # ALB target group
+  #----------------------------------------------
+  TargetGroup:
+    Type: AWS::ElasticLoadBalancingV2::TargetGroup
+    Properties:
+      VpcId:
+        Fn::ImportValue: !Sub ${NetworkStackName}-VpcID
+      Port:
+        Fn::ImportValue: !Ref AppIngressPort
+      Protocol: !Ref AppProtocol
+      Matcher:
+        HttpCode: 200
+      HealthCheckIntervalSeconds: 10
+      HealthCheckPath: !Ref HealthCheckPath
+      HealthCheckProtocol: !Ref AppProtocol
+      HealthCheckTimeoutSeconds: 5
+      HealthyThresholdCount: 2
+      TargetGroupAttributes:
+      - Key: deregistration_delay.timeout_seconds
+        Value: 300
+      TargetType: ip
+      Tags:
+      - Key: Stack
+        Value: !Ref AWS::StackName
+      - Key: Environment
+        Value: !Ref EnvironmentName
+
+Outputs:
+  Name:
+    Description: Fargate Stack Name
+    Value: !Ref AWS::StackName
+    Export:
+      Name: !Sub ${AWS::StackName}-Name
+
+  EnvironmentName:
+    Description: Environment Name
+    Value: !Ref EnvironmentName
+    Export:
+      Name: !Sub ${AWS::StackName}-EnvironmentName
+
+  FargateServiceArn:
+    Value: !Ref FargateService
+    Export:
+      Name: !Sub ${AWS::StackName}-FargateServiceArn
+
+  FargateServiceName:
+    Value: !GetAtt FargateService.Name
+    Export:
+      Name: !Sub ${AWS::StackName}-FargateServiceName

@@ -2,7 +2,7 @@ name: build_dev_image
 on:
   push:
     paths:
-      - "infra/docker/**"
+    - "infra/docker/**"
 jobs:
   build-dev-image:
     runs-on: ubuntu-latest

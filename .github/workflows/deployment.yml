@@ -1,10 +1,10 @@
 name: deployment
 on:
   push:
-    branches:
-    - "main"
+    branches-ignore:
+    - '**'
     tags:
-    - "*"
+    - "**"
 jobs:
   build-image:
     runs-on: ubuntu-latest
