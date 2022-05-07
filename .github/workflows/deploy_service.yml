@@ -1,38 +1,52 @@
-name: deployment
+name: deploy_service
 on:
-  push:
-    branches-ignore:
-    - '**'
-    tags:
-    - "**"
+  pull_request:
+    branches:
+    - main
+    types:
+    - closed
+
 jobs:
-  build-image:
+  tag:
     runs-on: ubuntu-latest
+    if: github.event.pull_request.merged == true
     steps:
     - name: Checkout
       uses: actions/checkout@v3
-    - name: Docker meta
-      id: meta
-      uses: docker/metadata-action@v3
-      with:
-        images: ${{ secrets.ECR_REGISTRY }}/${{ secrets.ECR_REPOSITORY_NAME }}
-        flavor: latest=auto
-        tags: |
-          type=ref,event=branch
-          type=semver,pattern={{version}}
+    - name: Tagging
+      id: create-tag
+      run: |
+        git tag v0.0.1
+        git push origin v0.0.1
+        echo "::set-output name=TAG_NAME::v0.0.1"
+
+  build-image:
+    runs-on: ubuntu-latest
+    needs: tag
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v3
+    - name: Set up QEMU
+      uses: docker/setup-qemu-action@v1
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v1
     - name: Configure AWS credentials
       uses: aws-actions/configure-aws-credentials@v1
       with:
         aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
         aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
         aws-region: ${{ secrets.AWS_REGION }}
-    - name: Login to Amazon ECR
-      id: login-ecr
-      uses: aws-actions/amazon-ecr-login@v1
-    - name: Set up QEMU
-      uses: docker/setup-qemu-action@v1
-    - name: Set up Docker Buildx
-      uses: docker/setup-buildx-action@v1
+    - name: Login to ECR
+      uses: docker/login-action@v2
+      with:
+        registry: ${{ secrets.ECR_REGISTRY }}
+    - name: Docker meta
+      id: meta
+      uses: docker/metadata-action@v3
+      with:
+        images: ${{ secrets.ECR_REGISTRY }}/${{ secrets.ECR_REPOSITORY_NAME }}
+        flavor: latest=auto
+        tags: type=raw,value={{ steps.create_tag.outputs.TAG_NAME }}
     - name: Build & Push
       uses: docker/build-push-action@v2
       with:
@@ -44,3 +58,12 @@ jobs:
         push: true
         tags: ${{ steps.meta.outputs.tags }}
         labels: ${{ steps.meta.outputs.labels }}
+
+  deploy:
+    runs-on: ubuntu-latest
+    needs:
+    - tag
+    - build-image
+    steps:
+    - name: No deployment
+      run: echo 'No deployment now'

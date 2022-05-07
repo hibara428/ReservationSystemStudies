@@ -1,12 +1,10 @@
 name: deploy_cfn_templates
 on:
-  push:
+  pull_request:
     branches:
     - "main"
     paths:
     - "infra/cfn/templates/**"
-    tags:
-    - "**"
   workflow_dispatch:
 jobs:
   deploy:
