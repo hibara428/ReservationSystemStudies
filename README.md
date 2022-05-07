@@ -15,28 +15,22 @@ This is a sample project to learn Laravel.
 
 ### Preparation
 
-- S3
+### Base infrastructures creation
 
 ```sh
-# Creates a S3 bucket for CFn templates.
-aws cloudformation create-stack \
-  --stack-name reservation-system-studies-cfn-templates-bucket \
-  --template-body file://./infra/cfn/templates/s3.cfn.yml \
-  --parameters ParameterKey=BucketName,ParameterValue=reservation-system-studies-cfn-templates
-# Copies CFn templates to a S3 bucket.
-aws s3 cp --recursive --region ap-northeast-1 ./infra/cfn/templates s3://reservation-system-studies/templates
+# S3 bucket and ECR repos creation
+./infra/cfn/prepare.sh
 ```
 
-- ECR
+### CFn templates uploading
 
-```sh
-# Creates a ECR repository.
-aws cloudformation create-stack \
-  --stack-name reservation-system-studies-ecr-repos \
-  --template-body file://./infra/cfn/templates/ecr.cfn.yml \
-  --parameters ParameterKey=RepositoryName,ParameterValue=reservation-system-studies
-```
+- Performs `deploy_cfn_template` workflow
+
+### Testing
+
+- Performs `build_dev_image` workflow
+- Performs `unit_test` workflow
 
 ### Deployment
 
-Deploy with GitHub Actions. Please read workflow files in `.github/workflows`.
+This app deploys with GitHub Actions. Please check a `deploy_service` workflow and more.
