@@ -47,7 +47,8 @@ COPY ./infra/docker/php.ini /etc/php/8.1/cli/conf.d/99-sail.ini
 COPY --chmod=$WWWUSER:$WWWGROUP . /var/www/html
 WORKDIR /var/www/html
 RUN chmod -R 777 /var/www/html/storage \
-    && composer install --no-dev
+    && composer install --no-dev \
+    && cp .env.example .env
 
 # Entry point
 COPY ./infra/docker/start-container /usr/local/bin/start-container
