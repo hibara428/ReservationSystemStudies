@@ -24,13 +24,24 @@ sail test
 
 ### Preparation
 
+#### Secrets Manager
+
+- `reservation-system-studies-app-env`
+
+| ParameterName | Description |
+| --- | --- | --- |
+| APP_KEY | env: APP_KEY |
+| DB_USERNAME | env: DB_USERNAME |
+| DB_PASSWORD | env: DB_PASSWORD |
+| DB_DATABASE | env: DB_DATABASE |
+
 #### Creating a base infrastructure
 
 - S3 bucket for CFn templates
 - ECR repository
 
 ```sh
-./infra/cfn/prepare.sh
+./infra/cfn/prepare.sh create
 ```
 
 #### Uploading CFn templates to S3
@@ -50,7 +61,7 @@ When some tag is pushed, a [deploy_service](https://github.com/hibara428/Reserva
 - Run the following command.
 
 ```sh
-./infra/cfn/deploy.sh
+./infra/cfn/deploy.sh create|update HOSTED_ZONE_ID
 ```
 
 ### Continuous delivery

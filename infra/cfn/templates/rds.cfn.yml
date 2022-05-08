@@ -19,32 +19,9 @@ Parameters:
     MaxLength: 255
     AllowedPattern: "^[a-zA-Z][-a-zA-Z0-9]*$"
 
-  DatabaseUser:
-    Default: admin
+  DatabaseSecretId:
+    Description: The RDS secret ID of secrets manager
     Type: String
-    Description: Database admin account name
-    MinLength: 5
-    MaxLength: 16
-    AllowedPattern: "[a-zA-Z][a-zA-Z0-9]*"
-    ConstraintDescription: Name must begin with a letter and contain only alphanumeric characters
-
-  DatabasePassword:
-    NoEcho: true
-    Type: String
-    Description: Database admin account password
-    MinLength: 6
-    MaxLength: 41
-    AllowedPattern: "[a-zA-Z0-9]*"
-    ConstraintDescription: Password must contain only alphanumeric characters
-
-  DatabaseName:
-    Default: testdb
-    Type: String
-    Description: Database name
-    MinLength: 1
-    MaxLength: 30
-    AllowedPattern: "[a-zA-Z][a-zA-Z0-9]*"
-    ConstraintDescription: Name must begin with a letter and contain only alphanumeric characters
 
   DatabaseSize:
     Default: 5
@@ -97,9 +74,9 @@ Parameters:
       - db.r4.8xlarge
       - db.r4.16xlarge
 
-  DatabaseSecurityGroups:
-    Type: List<AWS::EC2::SecurityGroup::Id>
-    Description: "List of security groups"
+  SecurityGroup:
+    Type: AWS::EC2::SecurityGroup::Id
+    Description: "Security group"
 
 Conditions:
   IsProd: !Equals [ !Ref EnvironmentName, prod ]
@@ -121,11 +98,12 @@ Resources:
     Type: AWS::RDS::DBInstance
     Properties:
       DBSubnetGroupName: !Ref DatabaseSubnetGroup
-      VPCSecurityGroups: !Ref DatabaseSecurityGroups
+      VPCSecurityGroups:
+        - !Ref SecurityGroup
       Engine: !Ref DatabaseEngine
-      DBName: !Ref DatabaseName
-      MasterUsername: !Ref DatabaseUser
-      MasterUserPassword: !Ref DatabasePassword
+      DBName: !Sub '{{resolve:secretsmanager:${DatabaseSecretId}:SecretString:DatabaseName}}'
+      MasterUsername: !Sub '{{resolve:secretsmanager:${DatabaseSecretId}:SecretString:DatabaseMasterUser}}'
+      MasterUserPassword: !Sub '{{resolve:secretsmanager:${DatabaseSecretId}:SecretString:DatabaseMasterPassword}}'
       DBInstanceClass: !Ref DatabaseInstanceClass
       AllocatedStorage: !Ref DatabaseSize
       StorageType: gp2
@@ -155,18 +133,6 @@ Outputs:
     Export:
       Name: !Sub ${AWS::StackName}-DatabaseURL
 
-  DbUser:
-    Description: RDS Database admin account user
-    Value: !Ref DatabaseUser
-    Export:
-      Name: !Sub ${AWS::StackName}-DatabaseUser
-
-  DbPassword:
-    Description: RDS Database admin account password
-    Value: !Ref DatabasePassword
-    Export:
-      Name: !Sub ${AWS::StackName}-DatabasePassword
-
   DbEngine:
     Description: RDS Database engine
     Value: !Ref DatabaseEngine
@@ -178,9 +144,3 @@ Outputs:
     Value: !If [ IsPostgres, 5432, 3306 ]
     Export:
       Name: !Sub ${AWS::StackName}-DatabasePort
-
-  DbName:
-    Description: RDS Database name
-    Value: !Ref DatabaseName
-    Export:
-      Name: !Sub ${AWS::StackName}-DatabaseName

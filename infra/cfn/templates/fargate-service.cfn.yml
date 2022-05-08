@@ -33,6 +33,17 @@ Parameters:
     MaxLength: 255
     AllowedPattern: "^[a-zA-Z][-a-zA-Z0-9]*$"
 
+  AlbStackName:
+    Type: String
+    Description: Name of an active CloudFormation stack that contains ALB resources
+    MinLength: 1
+    MaxLength: 255
+    AllowedPattern: "^[a-zA-Z][-a-zA-Z0-9]*$"
+
+  HostName:
+    Type: String
+    Description: The host name
+
   AppProtocol:
     Type: String
     Description: The application server protocol
@@ -50,9 +61,17 @@ Parameters:
     ConstraintDescription: TCP ports must be between 0 - 65535
     Default: 80
 
-  AppSecurityGroups:
-    Type: List<AWS::EC2::SecurityGroup::Id>
+  AppSecurityGroup:
+    Type: AWS::EC2::SecurityGroup::Id
     Description: The security group for ECS service.
+
+  LBListenerPriority:
+    Type: Number
+    Description: The service load balancer listener priority
+    Default: 2
+    MinValue: 2
+    MaxValue: 50000
+    ConstraintDescription: Number must be between 1 and 50,000
 
   HealthCheckPath:
     Type: String
@@ -113,13 +132,14 @@ Resources:
       TaskDefinition:
         Fn::ImportValue: !Sub ${EcsTaskStackName}-TaskDefinition
       LoadBalancers:
-        - ContainerName: !Ref AWS::StackName
+        - ContainerName: !Sub ${EcsTaskStackName}-${EnvironmentName}
           ContainerPort: !Ref AppIngressPort
           TargetGroupArn: !Ref TargetGroup
       NetworkConfiguration:
         AwsvpcConfiguration:
           AssignPublicIp: DISABLED
-          SecurityGroups: !Ref AppSecurityGroups
+          SecurityGroups:
+            - !Ref AppSecurityGroup
           Subnets:
             - Fn::ImportValue: !Sub ${NetworkStackName}-PrivateSubnet1ID
             - Fn::ImportValue: !Sub ${NetworkStackName}-PrivateSubnet2ID
@@ -242,8 +262,7 @@ Resources:
     Properties:
       VpcId:
         Fn::ImportValue: !Sub ${NetworkStackName}-VpcID
-      Port:
-        Fn::ImportValue: !Ref AppIngressPort
+      Port: !Ref AppIngressPort
       Protocol: !Ref AppProtocol
       Matcher:
         HttpCode: 200
@@ -261,6 +280,20 @@ Resources:
         Value: !Ref AWS::StackName
       - Key: Environment
         Value: !Ref EnvironmentName
+
+  ListenerRule:
+    Type: AWS::ElasticLoadBalancingV2::ListenerRule
+    Properties:
+      ListenerArn:
+        Fn::ImportValue: !Sub ${AlbStackName}-ApplicationLoadBalancerListenerArn
+      Priority: !Ref LBListenerPriority
+      Conditions:
+        - Field: host-header
+          Values:
+            - !Ref HostName
+      Actions:
+        - TargetGroupArn: !Ref TargetGroup
+          Type: forward
 
 Outputs:
   Name:
