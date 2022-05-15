@@ -16,9 +16,9 @@ jobs:
     - name: Tagging
       id: create-tag
       run: |
-        git tag v0.0.1
-        git push origin v0.0.1
-        echo "::set-output name=TAG_NAME::v0.0.1"
+        git tag v0.0.2
+        git push origin v0.0.2
+        echo "::set-output name=TAG_NAME::v0.0.2"
 
   build-image:
     runs-on: ubuntu-latest
