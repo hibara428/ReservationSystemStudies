@@ -26,9 +26,9 @@ Parameters:
     MaxLength: 2048
     Default: ""
 
-  SecurityGroups:
-    Type: List<AWS::EC2::SecurityGroup::Id>
-    Description: "List of Security groups"
+  SecurityGroup:
+    Type: AWS::EC2::SecurityGroup::Id
+    Description: "Security group"
 
   HostedZoneName:
     Type: String
@@ -37,18 +37,25 @@ Parameters:
     AllowedPattern: "(^$|^((?!-)[A-Za-z0-9-]{1,63}(?<!-)\\.)+[A-Za-z]{2,6}$)" # Allow for a blank or a domain name
     ConstraintDescription: Please enter a valid Route 53 Hosted Zone Name
 
-  LoadBalancerDomainName:
+  Subdomain:
     Type: String
-    Description: Domain name to create an Amazon Route 53 alias record for the load balancer
+    Description: Sub domain name to create an Amazon Route 53 alias record for the load balancer
     Default: ""
-    AllowedPattern: "(^$|^((?!-)[A-Za-z0-9-]{1,63}(?<!-)\\.)+[A-Za-z]{2,6}$)" # Allow for a blank or a domain name
-    ConstraintDescription: Please enter a valid domain name
+    ConstraintDescription: Please enter a valid sub domain name
+
+  ALBIngressPort:
+    Type: Number
+    Description: The ALB ingress port used by security groups
+    Default: 80
+    MinValue: 0
+    MaxValue: 65535
+    ConstraintDescription: TCP ports must be between 0 - 65535
 
 Conditions:
   IsTlsEnabled: !Not [ !Equals [ !Ref SSLCertificateArn, "" ] ]
 
   CreateRoute53Record: !And
-    - !Not [ !Equals [ !Ref LoadBalancerDomainName, "" ] ]
+    - !Not [ !Equals [ !Ref Subdomain, "" ] ]
     - !Not [ !Equals [ !Ref HostedZoneName, "" ] ]
 
 Resources:
@@ -58,7 +65,8 @@ Resources:
       Subnets:
         - Fn::ImportValue: !Sub ${NetworkStackName}-PublicSubnet1ID
         - Fn::ImportValue: !Sub ${NetworkStackName}-PublicSubnet2ID
-      SecurityGroups: !Ref SecurityGroups
+      SecurityGroups:
+        - !Ref SecurityGroup
       Tags:
       - Key: Stack
         Value: !Ref AWS::StackName
@@ -69,8 +77,7 @@ Resources:
     Type: AWS::ElasticLoadBalancingV2::Listener
     Properties:
       LoadBalancerArn: !Ref ApplicationLoadBalancer
-      Port:
-        Fn::ImportValue: !Sub ${NetworkStackName}-ELBIngressPort
+      Port: !Ref ALBIngressPort
       Protocol: !If [ IsTlsEnabled, HTTPS, HTTP ]
       Certificates:
         - CertificateArn: !If [ IsTlsEnabled, !Ref SSLCertificateArn, !Ref "AWS::NoValue" ]
@@ -85,7 +92,7 @@ Resources:
     Type: AWS::Route53::RecordSet
     Condition: CreateRoute53Record
     Properties:
-      Name: !Ref LoadBalancerDomainName
+      Name: !Sub ${Subdomain}.${HostedZoneName}
       HostedZoneName: !Sub ${HostedZoneName}.
       Type: A
       AliasTarget:
@@ -111,7 +118,7 @@ Outputs:
       Name: !Sub ${AWS::StackName}-ApplicationLoadBalancerArn
 
   ApplicationLoadBalancerDnsName:
-    Value: !If [ CreateRoute53Record, !Ref LoadBalancerDomainName, !GetAtt ApplicationLoadBalancer.DNSName ]
+    Value: !If [ CreateRoute53Record, !Sub "${Subdomain}.${HostedZoneName}", !GetAtt ApplicationLoadBalancer.DNSName ]
     Export:
       Name: !Sub ${AWS::StackName}-ApplicationLoadBalancerDnsName
 

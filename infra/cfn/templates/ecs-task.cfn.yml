@@ -12,17 +12,27 @@ Parameters:
       - prod
     ConstraintDescription: Specify either dev or prod
 
-  NetworkStackName:
+  DatabaseStackName:
     Type: String
-    Description: Name of an active CloudFormation stack that contains networking resources
+    Description: Name of an optional active CloudFormation stack that contains database resources
     MinLength: 1
     MaxLength: 255
     AllowedPattern: "^[a-zA-Z][-a-zA-Z0-9]*$"
 
-  DatabaseStackName:
+  AlbStackName:
     Type: String
-    Description: Name of an optional active CloudFormation stack that contains database resources
-    Default: ""
+    Description: Name of an active CloudFormation stack that contains ALB resources
+    MinLength: 1
+    MaxLength: 255
+    AllowedPattern: "^[a-zA-Z][-a-zA-Z0-9]*$"
+
+  AppSecretId:
+    Type: String
+    Description: The App secret ID of secrets manager
+
+  DatabaseSecretId:
+    Type: String
+    Description: The RDS secret ID of secrets manager
 
   AppIngressPort:
     Description: The application ingress port used by security groups
@@ -61,10 +71,6 @@ Parameters:
     Type: Number
     Default: 7
 
-  AppKey:
-    Type: String
-    Description: The environment value of "APP_KEY"
-
 Conditions:
   IsProd: !Equals [ !Ref EnvironmentName, prod ]
 
@@ -91,14 +97,14 @@ Resources:
             - Name: APP_ENV
               Value: !If [ IsProd, "production", "development" ]
             - Name: APP_KEY
-              Value: !Ref AppKey
+              Value: !Sub '{{resolve:secretsmanager:${AppSecretId}:SecretString:AppKey}}'
             - Name: APP_DEBUG
               Value: !If [ IsProd, true, false ]
             - Name: APP_URL
               Value: !Sub
                 - https://${DomainName}
                 - DomainName:
-                    Fn::ImportValue: !Sub '${NetworkStackName}-ApplicationLoadBalancerDnsName'
+                    Fn::ImportValue: !Sub '${AlbStackName}-ApplicationLoadBalancerDnsName'
             - Name: DB_CONNECTION
               Value:
                 Fn::ImportValue: !Sub "${DatabaseStackName}-DatabaseEngine"
@@ -109,14 +115,11 @@ Resources:
               Value:
                 Fn::ImportValue: !Sub "${DatabaseStackName}-DatabasePort"
             - Name: DB_DATABASE
-              Value:
-                Fn::ImportValue: !Sub "${DatabaseStackName}-DatabaseName"
+              Value: !Sub '{{resolve:secretsmanager:${DatabaseSecretId}:SecretString:DatabaseName}}'
             - Name: DB_USERNAME
-              Value:
-                Fn::ImportValue: !Sub "${DatabaseStackName}-DatabaseUser"
+              Value: !Sub '{{resolve:secretsmanager:${DatabaseSecretId}:SecretString:DatabaseMasterUser}}'
             - Name: DB_PASSWORD
-              Value:
-                Fn::ImportValue: !Sub "${DatabaseStackName}-DatabasePassword"
+              Value: !Sub '{{resolve:secretsmanager:${DatabaseSecretId}:SecretString:DatabaseMasterPassword}}'
           LogConfiguration:
             LogDriver: awslogs
             Options:

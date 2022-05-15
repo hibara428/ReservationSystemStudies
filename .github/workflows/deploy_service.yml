@@ -1,14 +1,28 @@
-name: build_dev_image
+name: deploy_service
 on:
   pull_request:
     branches:
-    - "main"
-    paths:
-    - "infra/docker/**"
-  workflow_dispatch:
+    - main
+    types:
+    - closed
+
 jobs:
+  tag:
+    runs-on: ubuntu-latest
+    if: github.event.pull_request.merged == true
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v3
+    - name: Tagging
+      id: create-tag
+      run: |
+        git tag v0.0.1
+        git push origin v0.0.1
+        echo "::set-output name=TAG_NAME::v0.0.1"
+
   build-image:
     runs-on: ubuntu-latest
+    needs: tag
     steps:
     - name: Checkout
       uses: actions/checkout@v3
@@ -32,15 +46,24 @@ jobs:
       with:
         images: ${{ secrets.ECR_REGISTRY }}/${{ secrets.ECR_REPOSITORY_NAME }}
         flavor: latest=auto
-        tags: type=raw,value=dev
+        tags: type=raw,value={{ steps.create_tag.outputs.TAG_NAME }}
     - name: Build & Push
       uses: docker/build-push-action@v2
       with:
         context: .
-        file: ./infra/docker/dev/Dockerfile
+        file: ./infra/docker/Dockerfile
         build-args: |
           WWWGROUP=${{ secrets.WWWGROUP }}
         platforms: linux/amd64,linux/arm64
         push: true
         tags: ${{ steps.meta.outputs.tags }}
         labels: ${{ steps.meta.outputs.labels }}
+
+  deploy:
+    runs-on: ubuntu-latest
+    needs:
+    - tag
+    - build-image
+    steps:
+    - name: No deployment
+      run: echo 'No deployment now'

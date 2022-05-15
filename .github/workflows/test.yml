@@ -1,16 +1,23 @@
-name: unit_test
+name: test
 on:
-  push:
-    branches:
-    - "main"
   pull_request:
   workflow_dispatch:
 jobs:
-  unit_test:
+  test:
     runs-on: ubuntu-latest
     steps:
     - name: Checkout
       uses: actions/checkout@v3
+    - name: Configure AWS credentials
+      uses: aws-actions/configure-aws-credentials@v1
+      with:
+        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        aws-region: ${{ secrets.AWS_REGION }}
+    - name: Login to ECR
+      uses: docker/login-action@v2
+      with:
+        registry: ${{ secrets.ECR_REGISTRY }}
     - name: Cache "vendor" directory
       id: cache
       uses: actions/cache@v3
@@ -22,15 +29,6 @@ jobs:
     - name: Run "composer install" (if "vendor" is NOT cached)
       if: steps.cache.outputs.cache-hit != 'true'
       run: composer install -n --prefer-dist
-    - name: Configure AWS credentials
-      uses: aws-actions/configure-aws-credentials@v1
-      with:
-        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-        aws-region: ${{ secrets.AWS_REGION }}
-    - name: Login to Amazon ECR
-      id: login-ecr
-      uses: aws-actions/amazon-ecr-login@v1
     - name: Pull a docker image for dev
       run: docker pull ${{ secrets.ECR_REGISTRY }}/${{ secrets.ECR_REPOSITORY_NAME }}:dev
     - name: Set up .env
