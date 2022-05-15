@@ -43,11 +43,6 @@ Resources:
       GroupDescription: Enable access from ELB to app
       VpcId:
         Fn::ImportValue: !Sub ${NetworkStackName}-VpcID
-      SecurityGroupIngress:
-      - SourceSecurityGroupId: !Ref ALBSecurityGroup
-        IpProtocol: tcp
-        ToPort: !Ref AppIngressPort
-        FromPort: !Ref AppIngressPort
       Tags:
       - Key: Name
         Value: !Sub "${AWS::StackName}-AppSecurityGroup"
@@ -75,6 +70,22 @@ Resources:
       Tags:
       - Key: Name
         Value: !Sub "${AWS::StackName}-DatabaseSecurityGroup"
+  DatabaseSecurityGroupFromAppPostgreSqlIngress:
+    Type: AWS::EC2::SecurityGroupIngress
+    Properties:
+      GroupId: !Ref DatabaseSecurityGroup
+      IpProtocol: tcp
+      ToPort: 5432
+      FromPort: 5432
+      SourceSecurityGroupId: !Ref AppSecurityGroup
+  DatabaseSecurityGroupFromAppMySqlIngress:
+    Type: AWS::EC2::SecurityGroupIngress
+    Properties:
+      GroupId: !Ref DatabaseSecurityGroup
+      IpProtocol: tcp
+      ToPort: 3306
+      FromPort: 3306
+      SourceSecurityGroupId: !Ref AppSecurityGroup
 
   # ALB
   ALBSecurityGroup:

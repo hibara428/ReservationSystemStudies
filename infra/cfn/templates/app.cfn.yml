@@ -1,8 +1,6 @@
 ---
 AWSTemplateFormatVersion: 2010-09-09
-Description: |
-  Creates application base infrastructures.
-  - VPC + ECS(base) + ALB + RDS
+Description: VPC + ECS(base) + ALB + RDS
 
 Parameters:
   # Common parameters
@@ -31,7 +29,7 @@ Parameters:
   ALBIngressPort:
     Type: Number
     Description: The ALB ingress port used by security groups
-    Default: 80
+    Default: 443
     MinValue: 0
     MaxValue: 65535
     ConstraintDescription: TCP ports must be between 0 - 65535
@@ -328,37 +326,6 @@ Resources:
   #----------------------------------------------
   # ECS
   #----------------------------------------------
-  EcsClusterStack:
-    Type: AWS::CloudFormation::Stack
-    Properties:
-      TemplateURL: !Sub
-        - https://s3.amazonaws.com/${TemplateBucket}/templates/ecs-cluster.cfn.yml
-        - TemplateBucket:
-            Fn::ImportValue: !Sub ${TemplateBucketStackName}-BucketName
-      Parameters:
-        EnvironmentName: !Ref EnvironmentName
-
-  EcsTaskStack:
-    Type: AWS::CloudFormation::Stack
-    Properties:
-      TemplateURL: !Sub
-        - https://s3.amazonaws.com/${TemplateBucket}/templates/ecs-task.cfn.yml
-        - TemplateBucket:
-            Fn::ImportValue: !Sub ${TemplateBucketStackName}-BucketName
-      Parameters:
-        EnvironmentName: !Ref EnvironmentName
-        DatabaseStackName: !GetAtt RdsStack.Outputs.Name
-        AlbStackName: !GetAtt AlbStack.Outputs.Name
-        AppSecretId: !Ref AppSecretId
-        DatabaseSecretId: !Ref DatabaseSecretId
-        AppIngressPort: !Ref AppIngressPort
-        DockerRepositoryUri:
-          Fn::ImportValue: !Sub ${EcrReposStackName}-EcrDockerRepositoryUri
-        DockerImageTag: !Ref DockerImageTag
-        ContainerCpu: !Ref ContainerCpu
-        ContainerMemory: !Ref ContainerMemory
-        ContainerLogRetentionInDays: !Ref ContainerLogRetentionInDays
-
   FargateServiceStack:
     Type: AWS::CloudFormation::Stack
     Properties:
@@ -369,9 +336,16 @@ Resources:
       Parameters:
         EnvironmentName: !Ref EnvironmentName
         NetworkStackName: !GetAtt VpcStack.Outputs.Name
-        EcsClusterStackName: !GetAtt EcsClusterStack.Outputs.Name
-        EcsTaskStackName: !GetAtt EcsTaskStack.Outputs.Name
         AlbStackName: !GetAtt AlbStack.Outputs.Name
+        RdsStackName: !GetAtt RdsStack.Outputs.Name
+        AppSecretId: !Ref AppSecretId
+        DatabaseSecretId: !Ref DatabaseSecretId
+        DockerRepositoryUri:
+          Fn::ImportValue: !Sub ${EcrReposStackName}-EcrDockerRepositoryUri
+        DockerImageTag: !Ref DockerImageTag
+        ContainerCpu: !Ref ContainerCpu
+        ContainerMemory: !Ref ContainerMemory
+        ContainerLogRetentionInDays: !Ref ContainerLogRetentionInDays
         HostName: !Sub ${Subdomain}.${HostedZoneName}
         AppProtocol: !Ref AppProtocol
         AppIngressPort: !Ref AppIngressPort
@@ -400,6 +374,7 @@ Resources:
         SecurityGroup: !GetAtt SecurityGroupStack.Outputs.ALBSecurityGroup
         HostedZoneName: !Ref HostedZoneName
         Subdomain: !Ref Subdomain
+        ALBIngressPort: !Ref ALBIngressPort
 
   #----------------------------------------------
   # ACM
@@ -442,22 +417,12 @@ Outputs:
   RdsStackName:
     Value: !GetAtt RdsStack.Outputs.Name
     Export:
-      Name: !Sub ${AWS::StackName}-DatabaseStackName
+      Name: !Sub ${AWS::StackName}-RdsStackName
 
-  EcsClusterStackName:
-    Value: !GetAtt EcsClusterStack.Outputs.Name
+  FargateServiceStackName:
+    Value: !GetAtt FargateServiceStack.Outputs.Name
     Export:
-      Name: !Sub ${AWS::StackName}-EcsClusterStackName
-
-  EcsTaskStackName:
-    Value: !GetAtt EcsTaskStack.Outputs.Name
-    Export:
-      Name: !Sub ${AWS::StackName}-EcsTaskStackName
-
-  # FargateServiceStackName:
-  #   Value: !GetAtt FargateServiceStack.Outputs.Name
-  #   Export:
-  #     Name: !Sub ${AWS::StackName}-FargateServiceStackName
+      Name: !Sub ${AWS::StackName}-FargateServiceStackName
 
   AlbStackName:
     Value: !GetAtt AlbStack.Outputs.Name
