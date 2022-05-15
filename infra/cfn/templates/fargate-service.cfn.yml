@@ -19,26 +19,56 @@ Parameters:
     MaxLength: 255
     AllowedPattern: "^[a-zA-Z][-a-zA-Z0-9]*$"
 
-  EcsClusterStackName:
-    Type: String
-    Description: Name of an active CloudFormation stack that contains ECS cluster resources
-    MinLength: 1
-    MaxLength: 255
-    AllowedPattern: "^[a-zA-Z][-a-zA-Z0-9]*$"
-
-  EcsTaskStackName:
-    Type: String
-    Description: Name of an active CloudFormation stack that contains ECS task definition resources
-    MinLength: 1
-    MaxLength: 255
-    AllowedPattern: "^[a-zA-Z][-a-zA-Z0-9]*$"
-
   AlbStackName:
     Type: String
     Description: Name of an active CloudFormation stack that contains ALB resources
     MinLength: 1
     MaxLength: 255
     AllowedPattern: "^[a-zA-Z][-a-zA-Z0-9]*$"
+
+  RdsStackName:
+    Type: String
+    Description: Name of an optional active CloudFormation stack that contains RDS resources
+    MinLength: 1
+    MaxLength: 255
+    AllowedPattern: "^[a-zA-Z][-a-zA-Z0-9]*$"
+
+  AppSecretId:
+    Type: String
+    Description: The App secret ID of secrets manager
+
+  DatabaseSecretId:
+    Type: String
+    Description: The RDS secret ID of secrets manager
+
+  DockerRepositoryUri:
+    Type: String
+    Description: The URI of docker repository
+
+  DockerImageTag:
+    Type: String
+    Description: The tag of docker image.
+    Default: latest
+
+  ContainerCpu:
+    Type: Number
+    Description: "Amount of CPU for the container - options available: https://aws.amazon.com/fargate/pricing/"
+    Default: 256
+    MinValue: 256
+    MaxValue: 4096
+    ConstraintDescription: "Value must be between 256 and 4096 - see: https://docs.aws.amazon.com/AmazonECS/latest/developerguide/task_definition_parameters.html#task_size"
+
+  ContainerMemory:
+    Type: Number
+    Description: "Amount of memory for the container - options available: https://aws.amazon.com/fargate/pricing/"
+    Default: 512
+    MinValue: 512
+    MaxValue: 30720
+    ConstraintDescription: "Value must be between 512 and 30720 - see: https://aws.amazon.com/fargate/pricing/"
+
+  ContainerLogRetentionInDays:
+    Type: Number
+    Default: 7
 
   HostName:
     Type: String
@@ -117,22 +147,106 @@ Parameters:
     MinValue: 1
     ConstraintDescription: Value must be at least one
 
+Conditions:
+  IsProd: !Equals [ !Ref EnvironmentName, prod ]
+
 Resources:
+  #----------------------------------------------
+  # ECS cluster
+  #----------------------------------------------
+  EcsCluster:
+    Type: AWS::ECS::Cluster
+    Properties:
+      ClusterName: !Ref AWS::StackName
+
+  #----------------------------------------------
+  # ECS task definition
+  #----------------------------------------------
+  TaskDefinition:
+    Type: AWS::ECS::TaskDefinition
+    Properties:
+      Family: !Ref AWS::StackName
+      RequiresCompatibilities:
+        - FARGATE
+      Cpu: !Ref ContainerCpu
+      Memory: !Ref ContainerMemory
+      NetworkMode: awsvpc
+      ExecutionRoleArn: !GetAtt TaskExecutionRole.Arn
+      ContainerDefinitions:
+        - Name: !Sub ${AWS::StackName}-${EnvironmentName}
+          Image: !Sub ${DockerRepositoryUri}:${DockerImageTag}
+          Essential: true
+          PortMappings:
+            - ContainerPort: !Ref AppIngressPort
+          Environment:
+            - Name: ENVIRONMENT_NAME
+              Value: !Ref EnvironmentName
+            - Name: APP_ENV
+              Value: !If [ IsProd, "production", "development" ]
+            - Name: APP_KEY
+              Value: !Sub '{{resolve:secretsmanager:${AppSecretId}:SecretString:AppKey}}'
+            - Name: APP_DEBUG
+              Value: !If [ IsProd, true, false ]
+            - Name: APP_URL
+              Value: !Sub
+                - https://${DomainName}
+                - DomainName:
+                    Fn::ImportValue: !Sub '${AlbStackName}-ApplicationLoadBalancerDnsName'
+            - Name: DB_CONNECTION
+              Value:
+                Fn::ImportValue: !Sub "${RdsStackName}-DatabaseEngine"
+            - Name: DB_HOST
+              Value:
+                Fn::ImportValue: !Sub "${RdsStackName}-DatabaseURL"
+            - Name: DB_PORT
+              Value:
+                Fn::ImportValue: !Sub "${RdsStackName}-DatabasePort"
+            - Name: DB_DATABASE
+              Value: !Sub '{{resolve:secretsmanager:${DatabaseSecretId}:SecretString:DatabaseName}}'
+            - Name: DB_USERNAME
+              Value: !Sub '{{resolve:secretsmanager:${DatabaseSecretId}:SecretString:DatabaseMasterUser}}'
+            - Name: DB_PASSWORD
+              Value: !Sub '{{resolve:secretsmanager:${DatabaseSecretId}:SecretString:DatabaseMasterPassword}}'
+          LogConfiguration:
+            LogDriver: awslogs
+            Options:
+              awslogs-region: !Ref AWS::Region
+              awslogs-group: !Ref TaskLogGroup
+              awslogs-stream-prefix: !Ref AWS::StackName
+
+  TaskLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub /fargate/${AWS::StackName}/${EnvironmentName}
+      RetentionInDays: !Ref ContainerLogRetentionInDays
+
+  TaskExecutionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      Path: /
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: ecs-tasks.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy
+
   #----------------------------------------------
   # ECS service
   #----------------------------------------------
   FargateService:
     Type: AWS::ECS::Service
     Properties:
-      Cluster:
-        Fn::ImportValue: !Sub ${EcsClusterStackName}-EcsClusterName
+      Cluster: !Ref EcsCluster
       ServiceName: !Ref AWS::StackName
       DesiredCount: !Ref TaskMinContainerCount
       LaunchType: FARGATE
-      TaskDefinition:
-        Fn::ImportValue: !Sub ${EcsTaskStackName}-TaskDefinition
+      TaskDefinition: !Ref TaskDefinition
       LoadBalancers:
-        - ContainerName: !Sub ${EcsTaskStackName}-${EnvironmentName}
+        - ContainerName: !Sub ${AWS::StackName}-${EnvironmentName}
           ContainerPort: !Ref AppIngressPort
           TargetGroupArn: !Ref TargetGroup
       NetworkConfiguration:
@@ -154,8 +268,7 @@ Resources:
       MaxCapacity: !Ref TaskMaxContainerCount
       ResourceId: !Sub
         - service/${EcsClusterName}/${EcsServiceName}
-        - EcsClusterName:
-            Fn::ImportValue: !Sub ${EcsClusterStackName}-EcsClusterName
+        - EcsClusterName: !Ref EcsCluster
           EcsServiceName: !GetAtt FargateService.Name
       RoleARN: !GetAtt ServiceAutoScalingRole.Arn
       ScalableDimension: ecs:service:DesiredCount
@@ -203,8 +316,7 @@ Resources:
       Namespace: AWS/ECS
       Dimensions:
         - Name: ClusterName
-          Value:
-            Fn::ImportValue: !Sub ${EcsClusterStackName}-EcsClusterName
+          Value: !Ref EcsCluster
         - Name: ServiceName
           Value: !GetAtt FargateService.Name
       ComparisonOperator: GreaterThanThreshold
@@ -224,8 +336,7 @@ Resources:
       Namespace: AWS/ECS
       Dimensions:
         - Name: ClusterName
-          Value:
-            Fn::ImportValue: !Sub ${EcsClusterStackName}-EcsClusterName
+          Value: !Ref EcsCluster
         - Name: ServiceName
           Value: !GetAtt FargateService.Name
       ComparisonOperator: LessThanThreshold
@@ -266,10 +377,10 @@ Resources:
       Protocol: !Ref AppProtocol
       Matcher:
         HttpCode: 200
-      HealthCheckIntervalSeconds: 10
+      HealthCheckIntervalSeconds: 60
       HealthCheckPath: !Ref HealthCheckPath
       HealthCheckProtocol: !Ref AppProtocol
-      HealthCheckTimeoutSeconds: 5
+      HealthCheckTimeoutSeconds: 30
       HealthyThresholdCount: 2
       TargetGroupAttributes:
       - Key: deregistration_delay.timeout_seconds
@@ -307,6 +418,11 @@ Outputs:
     Value: !Ref EnvironmentName
     Export:
       Name: !Sub ${AWS::StackName}-EnvironmentName
+
+  EcsTaskDefinition:
+    Value: !Ref TaskDefinition
+    Export:
+      Name: !Sub ${AWS::StackName}-TaskDefinition
 
   FargateServiceArn:
     Value: !Ref FargateService

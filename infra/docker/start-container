@@ -14,5 +14,13 @@ if [ $# -gt 0 ]; then
     exec gosu $WWWUSER "$@"
 else
     php artisan migrate
+    # If APP_KEY is empty, Generate an app key.
+    if [ -z "${APP_KEY}" ]; then
+        php artisan key:generate
+    fi
+    # Cache config in production.
+    if [ "${APP_ENV}" = "production" ]; then
+        php artisan config:cache
+    fi
     /usr/bin/supervisord -c /etc/supervisor/conf.d/supervisord.conf
 fi
