@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 
-if [ ! -z "$WWWUSER" ]; then
-    usermod -u $WWWUSER sail
+if [ ! -z "${WWWUSER}" ]; then
+    usermod -u "${WWWUSER}" sail
 fi
 
 if [ ! -d /.composer ]; then
@@ -11,12 +11,14 @@ fi
 chmod -R ugo+rw /.composer
 
 if [ $# -gt 0 ]; then
-    exec gosu $WWWUSER "$@"
+    exec gosu "${WWWUSER}" "$@"
 else
     php artisan migrate
     # If APP_KEY is empty, Generate an app key.
     # TODO: DEBUG: always keygen
     php artisan key:generate
+    php artisan cache:clear
+    php artisan config:clear
     # if [ -z "${APP_KEY}" ]; then
     #     php artisan key:generate
     # fi
