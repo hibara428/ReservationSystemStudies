@@ -17,6 +17,7 @@ else
     # If APP_KEY is empty, Generate an app key.
     # TODO: DEBUG: always keygen
     php artisan key:generate
+    php artisan cache:clear
     php artisan config:clear
     # if [ -z "${APP_KEY}" ]; then
     #     php artisan key:generate
