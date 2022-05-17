@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-if [ ! -z "${WWWUSER}" ]; then
+if [ -n "${WWWUSER}" ]; then
     usermod -u "${WWWUSER}" sail
 fi
 
@@ -13,18 +13,19 @@ chmod -R ugo+rw /.composer
 if [ $# -gt 0 ]; then
     exec gosu "${WWWUSER}" "$@"
 else
-    php artisan migrate
-    # If APP_KEY is empty, Generate an app key.
-    # TODO: DEBUG: always keygen
-    php artisan key:generate
-    php artisan cache:clear
-    php artisan config:clear
-    # if [ -z "${APP_KEY}" ]; then
-    #     php artisan key:generate
-    # fi
+    # Set up "APP_KEY". Laravel should have "APP_KEY" in .env.
+    if [ -n "${APP_KEY}" ]; then
+        # NOTE: "APP_KEY" includes slashes.
+        sed -i -e "s%^APP_KEY=.*$%APP_KEY=${APP_KEY}%" /var/www/html/.env
+    else
+        php artisan key:generate
+    fi
     # Cache config in production.
     if [ "${APP_ENV}" = "production" ]; then
         php artisan config:cache
     fi
+    # Migration
+    php artisan migrate
+    # Start supervisord
     /usr/bin/supervisord -c /etc/supervisor/conf.d/supervisord.conf
 fi
