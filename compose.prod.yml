@@ -6,7 +6,7 @@ services:
             context: .
             dockerfile: ./infra/docker/prod/Dockerfile
             args:
-                WWWGROUP: '${WWWGROUP:-1000}'
+                WWWGROUP: '${WWWGROUP:-1337}'
         extra_hosts:
             - 'host.docker.internal:host-gateway'
         ports:
