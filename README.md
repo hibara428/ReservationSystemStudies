@@ -41,7 +41,7 @@ sail test
 - ECR repository
 
 ```sh
-./infra/cfn/prepare.sh create
+./infra/bin/prepare.sh create
 ```
 
 #### Uploading CFn templates to S3
@@ -61,7 +61,7 @@ When some tag is pushed, a [deploy_service](https://github.com/hibara428/Reserva
 - Run the following command.
 
 ```sh
-./infra/cfn/deploy.sh create|update HOSTED_ZONE_ID [DOCKER_IMAGE_TAG]
+./infra/bin/deploy.sh create|update HOSTED_ZONE_ID [DOCKER_IMAGE_TAG]
 ```
 
 ### Continuous delivery
