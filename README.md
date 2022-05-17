@@ -61,7 +61,7 @@ When some tag is pushed, a [deploy_service](https://github.com/hibara428/Reserva
 - Run the following command.
 
 ```sh
-./infra/cfn/deploy.sh create|update HOSTED_ZONE_ID
+./infra/cfn/deploy.sh create|update HOSTED_ZONE_ID [DOCKER_IMAGE_TAG]
 ```
 
 ### Continuous delivery

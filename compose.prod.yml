@@ -4,7 +4,7 @@ services:
         image: 480319318642.dkr.ecr.ap-northeast-1.amazonaws.com/reservation_system_studies
         build:
             context: .
-            dockerfile: ./infra/docker/Dockerfile
+            dockerfile: ./infra/docker/prod/Dockerfile
             args:
                 WWWGROUP: '${WWWGROUP:-1000}'
         extra_hosts:
