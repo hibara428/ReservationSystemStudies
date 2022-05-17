@@ -13,13 +13,6 @@ chmod -R ugo+rw /.composer
 if [ $# -gt 0 ]; then
     exec gosu "${WWWUSER}" "$@"
 else
-    # Set up "APP_KEY". Laravel should have "APP_KEY" in .env.
-    if [ -n "${APP_KEY}" ]; then
-        # NOTE: "APP_KEY" includes slashes.
-        sed -i -e "s%^APP_KEY=.*$%APP_KEY=${APP_KEY}%" /var/www/html/.env
-    else
-        php artisan key:generate
-    fi
     # Cache config in production.
     if [ "${APP_ENV}" = "production" ]; then
         php artisan config:cache

@@ -48,8 +48,7 @@ COPY --chown=sail:$WWWGROUP . /var/www/html
 USER sail
 WORKDIR /var/www/html
 RUN chmod -R 777 /var/www/html/storage \
-    && composer install --no-dev \
-    && cp .env.example .env
+    && composer install --no-dev
 
 # Entry point
 USER root
