@@ -1,21 +1,20 @@
 version: '3'
 services:
     app:
+        image: 480319318642.dkr.ecr.ap-northeast-1.amazonaws.com/reservation_system_studies
         build:
             context: .
             dockerfile: ./infra/docker/Dockerfile
             args:
                 WWWGROUP: '${WWWGROUP:-1000}'
-        image: 480319318642.dkr.ecr.ap-northeast-1.amazonaws.com/reservation_system_studies
         extra_hosts:
             - 'host.docker.internal:host-gateway'
         ports:
             - '${APP_PORT:-80}:80'
         environment:
-            WWWUSER: '${WWWUSER:-1000}'
             TZ: Asia/Tokyo
         env_file:
-          - .env
+            - .env
         networks:
             - sail
         depends_on:

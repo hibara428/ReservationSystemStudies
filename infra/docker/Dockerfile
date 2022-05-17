@@ -2,7 +2,7 @@ FROM ubuntu:21.10
 LABEL maintainer="hibara428"
 
 # Docker args
-ARG WWWGROUP
+ARG WWWGROUP=1337
 ARG NODE_VERSION=16
 
 # Environments
@@ -44,13 +44,15 @@ COPY ./infra/docker/supervisord.conf /etc/supervisor/conf.d/supervisord.conf
 COPY ./infra/docker/php.ini /etc/php/8.1/cli/conf.d/99-sail.ini
 
 # Build app
-COPY --chmod=$WWWUSER:$WWWGROUP . /var/www/html
+COPY --chown=sail:$WWWGROUP . /var/www/html
+USER sail
 WORKDIR /var/www/html
 RUN chmod -R 777 /var/www/html/storage \
     && composer install --no-dev \
     && cp .env.example .env
 
 # Entry point
+USER root
 COPY ./infra/docker/start-container /usr/local/bin/start-container
 RUN chmod +x /usr/local/bin/start-container
 
