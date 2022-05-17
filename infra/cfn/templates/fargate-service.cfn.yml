@@ -181,6 +181,8 @@ Resources:
           Environment:
             - Name: ENVIRONMENT_NAME
               Value: !Ref EnvironmentName
+            - Name: APP_NAME
+              Value: ReservationSystemStudies
             - Name: APP_ENV
               Value: !If [ IsProd, "production", "development" ]
             - Name: APP_KEY
@@ -207,6 +209,8 @@ Resources:
               Value: !Sub '{{resolve:secretsmanager:${DatabaseSecretId}:SecretString:DatabaseMasterUser}}'
             - Name: DB_PASSWORD
               Value: !Sub '{{resolve:secretsmanager:${DatabaseSecretId}:SecretString:DatabaseMasterPassword}}'
+            - Name: BROADCAST_DRIVER
+              Value: log
           LogConfiguration:
             LogDriver: awslogs
             Options:
