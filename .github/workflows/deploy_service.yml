@@ -1,30 +1,15 @@
 name: deploy_service
 on:
-  pull_request:
-    branches:
-    - main
-    types:
-    - closed
-  workflow_dispatch:
+  push:
+    branches-ignore:
+      - '**'
+    tags:
+      - 'v*'
 jobs:
-  tag:
-    runs-on: ubuntu-latest
-    if: github.event.pull_request.merged == true
-    outputs:
-      TAG_NAME: ${{ steps.create-tag.outputs.TAG_NAME }}
-    steps:
-    - name: Checkout
-      uses: actions/checkout@v3
-    - name: Tagging
-      id: create-tag
-      run: |
-        git tag v0.0.11
-        git push origin v0.0.11
-        echo "::set-output name=TAG_NAME::v0.0.11"
-
   build-image:
     runs-on: ubuntu-latest
-    needs: tag
+    outputs:
+      tags: ${{ steps.meta.outputs.tags }}
     steps:
     - name: Checkout
       uses: actions/checkout@v3
@@ -48,8 +33,7 @@ jobs:
       with:
         images: ${{ secrets.ECR_REGISTRY }}/${{ secrets.ECR_REPOSITORY_NAME }}
         flavor: latest=auto
-        tags: type=raw,value=v0.0.11
-        # tags: type=raw,value={{ needs.tag.outputs.TAG_NAME }}
+        tags: type=semver,pattern={{version}}
     - name: Build & Push
       uses: docker/build-push-action@v2
       with:
@@ -65,7 +49,6 @@ jobs:
   deploy:
     runs-on: ubuntu-latest
     needs:
-    - tag
     - build-image
     steps:
     - name: No deployment
