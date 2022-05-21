@@ -29,13 +29,15 @@ jobs:
     - name: Run "composer install" (if "vendor" is NOT cached)
       if: steps.cache.outputs.cache-hit != 'true'
       run: composer install -n --prefer-dist
-    - name: Set up .env
+    - name: Set up .env (for sail commands)
       run: php -r "copy('.env.testing', '.env');"
-    - name: Change owner for tests
-      run: chmod -R 777 storage
     - name: Pull a docker image for dev
       run: docker pull ${{ secrets.ECR_REGISTRY }}/${{ secrets.ECR_REPOSITORY_NAME }}:dev
     - name: Up containers
       run: ./vendor/bin/sail up -d
+      env:
+        APP_ENV: testing
     - name: Execute unit and feature tests
       run: ./vendor/bin/sail test --do-not-cache-result
+      env:
+        APP_ENV: testing
