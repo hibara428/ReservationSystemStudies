@@ -6,7 +6,7 @@ services:
             dockerfile: ./infra/docker/dev/Dockerfile
             args:
                 WWWGROUP: '${WWWGROUP:-1337}'
-        image: 480319318642.dkr.ecr.ap-northeast-1.amazonaws.com/reservation_system_studies:dev
+        image: 480319318642.dkr.ecr.ap-northeast-1.amazonaws.com/reservation-system-studies:dev
         extra_hosts:
             - 'host.docker.internal:host-gateway'
         ports:
