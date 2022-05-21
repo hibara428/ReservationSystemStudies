@@ -13,10 +13,9 @@ chmod -R ugo+rw /.composer
 if [ $# -gt 0 ]; then
     exec gosu "${WWWUSER}" "$@"
 else
-    # Cache config in production.
-    if [ "${APP_ENV}" = "production" ]; then
-        php artisan config:cache
-    fi
+    # For mounting a volume for development.
+    find bootstrap/cache -not -name ".gitignore" -exec chown "sail:${WWWGROUP}" {} \;
+    find storage -not -name ".gitignore" -exec chown "sail:${WWWGROUP}" {} \;
     # Migration
     php artisan migrate
     # Start supervisord
