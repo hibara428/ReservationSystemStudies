@@ -7,20 +7,20 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - name: Checkout
-      uses: actions/checkout@v3
+      uses: actions/checkout@2541b1294d2704b0964813337f33b291d3f8596b
     - name: Configure AWS credentials
-      uses: aws-actions/configure-aws-credentials@v1
+      uses: aws-actions/configure-aws-credentials@05b148adc31e091bafbaf404f745055d4d3bc9d2
       with:
         aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
         aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
         aws-region: ${{ secrets.AWS_REGION }}
     - name: Login to ECR
-      uses: docker/login-action@v2
+      uses: docker/login-action@49ed152c8eca782a232dede0303416e8f356c37b
       with:
         registry: ${{ secrets.ECR_REGISTRY }}
     - name: Cache "vendor" directory
       id: cache
-      uses: actions/cache@v3
+      uses: actions/cache@48af2dc4a9e8278b89d7fa154b955c30c6aaab09
       with:
         path: ./vendor
         key: ${{ runner.os }}-composer-${{ hashFiles('**/composer.lock') }}
