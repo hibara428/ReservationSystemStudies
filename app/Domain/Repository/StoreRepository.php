@@ -8,23 +8,12 @@ use App\Models\Store as ModelsStore;
 
 class StoreRepository implements StoreRepositoryInterface
 {
-    /** @var ModelsStore */
-    private $modelsStore;
-
-    /**
-     * @param ModelsStore $modelsStore
-     */
-    public function __construct(ModelsStore $modelsStore)
-    {
-        $this->modelsStore = $modelsStore;
-    }
-
     /**
      * @inheritDoc
      */
     public function all(): array
     {
-        $records = $this->modelsStore->get();
+        $records = ModelsStore::get();
         if (is_null($records)) {
             return [];
         }
@@ -43,7 +32,7 @@ class StoreRepository implements StoreRepositoryInterface
      */
     public function find(int $id): ?Store
     {
-        $record = $this->modelsStore->find($id);
+        $record = ModelsStore::find($id);
         if (is_null($record)) {
             return null;
         }

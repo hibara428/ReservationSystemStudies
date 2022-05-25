@@ -9,7 +9,7 @@ The reservation system project to learn Laravel.
 This is a sample project to learn Laravel.
 
 - PHP 8.1
-- Laravel 8
+- Laravel 9
 
 ## Development
 

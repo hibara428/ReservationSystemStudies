@@ -1,6 +1,6 @@
 <?php
 
-namespace Tests\Unit;
+namespace Tests\Unit\Services;
 
 use App\DataProvider\StoreRepositoryInterface;
 use App\Domain\Entity\Store;
@@ -17,6 +17,17 @@ class StoreServiceTest extends TestCase
 {
     use WithFaker;
     use RefreshDatabase;
+
+    /**
+     * Tear down
+     *
+     * @return void
+     */
+    public function tearDown(): void
+    {
+        Mockery::close();
+        parent::tearDown();
+    }
 
     /**
      * @test

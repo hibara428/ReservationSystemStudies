@@ -8,23 +8,12 @@ use App\Models\ServiceOption as ModelsServiceOption;
 
 class ServiceOptionRepository implements ServiceOptionRepositoryInterface
 {
-    /** @var ModelsServiceOption */
-    private $serviceOption;
-
-    /**
-     * @param ModelsServiceOption $serviceOption
-     */
-    public function __construct(ModelsServiceOption $serviceOption)
-    {
-        $this->serviceOption = $serviceOption;
-    }
-
     /**
      * @inheritDoc
      */
     public function all(): array
     {
-        $records = $this->serviceOption->get();
+        $records = ModelsServiceOption::get();
         if (is_null($records)) {
             return [];
         }
