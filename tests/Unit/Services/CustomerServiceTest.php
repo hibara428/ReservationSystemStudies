@@ -1,6 +1,6 @@
 <?php
 
-namespace Tests\Unit;
+namespace Tests\Unit\Services;
 
 use App\Domain\Entity\Customer;
 use App\Domain\Entity\CustomerContract;
@@ -24,6 +24,17 @@ class CustomerServiceTest extends TestCase
 {
     use WithFaker;
     use RefreshDatabase;
+
+    /**
+     * Tear down
+     *
+     * @return void
+     */
+    public function tearDown(): void
+    {
+        Mockery::close();
+        parent::tearDown();
+    }
 
     /**
      * @test

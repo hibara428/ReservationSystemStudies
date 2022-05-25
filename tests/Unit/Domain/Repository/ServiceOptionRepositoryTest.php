@@ -6,7 +6,6 @@ use App\Domain\Entity\ServiceOption;
 use App\Domain\Repository\ServiceOptionRepository;
 use App\Models\ServiceOption as ModelsServiceOption;
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use Mockery;
 use Tests\TestCase;
 
 /**
@@ -31,16 +30,8 @@ class ServiceOptionRepositoryTest extends TestCase
             );
         })->toArray();
 
-        // Mocks
-        /** @var ModelsServiceOption $modelMock */
-        $modelMock = Mockery::mock(ModelsServiceOption::class);
-        $modelMock->shouldReceive('get')
-            ->once()
-            ->withNoArgs()
-            ->andReturn($serviceOptionModels);
-
         // Tests
-        $serviceOptionRepos = new ServiceOptionRepository($modelMock);
+        $serviceOptionRepos = new ServiceOptionRepository();
         $this->assertEquals(
             $expected,
             $serviceOptionRepos->all()
@@ -53,16 +44,8 @@ class ServiceOptionRepositoryTest extends TestCase
      */
     public function all_emptyRecords(): void
     {
-        // Mocks
-        /** @var ModelsServiceOption $modelMock */
-        $modelMock = Mockery::mock(ModelsServiceOption::class);
-        $modelMock->shouldReceive('get')
-            ->once()
-            ->withNoArgs()
-            ->andReturn(null);
-
         // Tests
-        $repos = new ServiceOptionRepository($modelMock);
+        $repos = new ServiceOptionRepository();
         $this->assertEquals(
             [],
             $repos->all()

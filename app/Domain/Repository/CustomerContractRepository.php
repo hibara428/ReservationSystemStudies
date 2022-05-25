@@ -7,29 +7,17 @@ use App\Domain\Entity\Customer;
 use App\Domain\Entity\CustomerContract;
 use App\Domain\Entity\CustomerOption;
 use App\Domain\Entity\CustomerPlan;
-use App\Domain\Entity\ServicePlan;
 use App\Models\Customer as ModelsCustomer;
 use App\Models\CustomerOption as ModelsCustomerOption;
 
 class CustomerContractRepository implements CustomerContractRepositoryInterface
 {
-    /** @var ModelsCustomer */
-    private $customer;
-
-    /**
-     * @param ModelsCustomer $customer
-     */
-    public function __construct(ModelsCustomer $customer)
-    {
-        $this->customer = $customer;
-    }
-
     /**
      * @inheritDoc
      */
     public function findByUserId(int $userId): ?CustomerContract
     {
-        $record = $this->customer->with([
+        $record = ModelsCustomer::with([
             'customerPlan.servicePlan',
             'customerOptions.serviceOption'
         ])

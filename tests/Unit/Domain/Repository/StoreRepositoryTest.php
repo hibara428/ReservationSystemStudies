@@ -6,7 +6,6 @@ use App\Domain\Entity\Store;
 use App\Domain\Repository\StoreRepository;
 use App\Models\Store as ModelsStore;
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use Mockery;
 use Tests\TestCase;
 
 /**
@@ -33,16 +32,8 @@ class StoreRepositoryTest extends TestCase
             );
         })->toArray();
 
-        // Mocks
-        /** @var ModelsStore $modelMock */
-        $modelMock = Mockery::mock(ModelsStore::class);
-        $modelMock->shouldReceive('get')
-            ->once()
-            ->withNoArgs()
-            ->andReturn($storeModels);
-
         // Tests
-        $storeRepos = new StoreRepository($modelMock);
+        $storeRepos = new StoreRepository();
         $this->assertEquals(
             $expected,
             $storeRepos->all()
@@ -55,16 +46,8 @@ class StoreRepositoryTest extends TestCase
      */
     public function all_emptyRecords(): void
     {
-        // Mocks
-        /** @var ModelsStore $modelMock */
-        $modelMock = Mockery::mock(ModelsStore::class);
-        $modelMock->shouldReceive('get')
-            ->once()
-            ->withNoArgs()
-            ->andReturn(null);
-
         // Tests
-        $storeRepos = new StoreRepository($modelMock);
+        $storeRepos = new StoreRepository();
         $this->assertEquals(
             [],
             $storeRepos->all()
@@ -89,7 +72,7 @@ class StoreRepositoryTest extends TestCase
         });
 
         // Tests
-        $storeRepos = new StoreRepository(new ModelsStore());
+        $storeRepos = new StoreRepository();
         $this->assertEquals(
             $expected->get(0),
             $storeRepos->find($storeModels->get(0)->id)
@@ -102,16 +85,8 @@ class StoreRepositoryTest extends TestCase
      */
     public function find_emptyRecords(): void
     {
-        // Mocks
-        /** @var ModelsStore $modelMock */
-        $modelMock = Mockery::mock(ModelsStore::class);
-        $modelMock->shouldReceive('find')
-            ->once()
-            ->withArgs([0])
-            ->andReturn(null);
-
         // Tests
-        $storeRepos = new StoreRepository($modelMock);
+        $storeRepos = new StoreRepository();
         $this->assertNull($storeRepos->find(0));
     }
 }

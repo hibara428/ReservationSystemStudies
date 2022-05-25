@@ -6,7 +6,6 @@ use App\Domain\Entity\ServicePlan;
 use App\Domain\Repository\ServicePlanRepository;
 use App\Models\ServicePlan as ModelsServicePlan;
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use Mockery;
 use Tests\TestCase;
 
 /**
@@ -31,16 +30,8 @@ class ServicePlanRepositoryTest extends TestCase
             );
         })->toArray();
 
-        // Mocks
-        /** @var ModelsServicePlan $modelMock */
-        $modelMock = Mockery::mock(ModelsServicePlan::class);
-        $modelMock->shouldReceive('get')
-            ->once()
-            ->withNoArgs()
-            ->andReturn($servicePlanModels);
-
         // Tests
-        $repos = new ServicePlanRepository($modelMock);
+        $repos = new ServicePlanRepository();
         $this->assertEquals(
             $expected,
             $repos->all()
@@ -53,16 +44,8 @@ class ServicePlanRepositoryTest extends TestCase
      */
     public function all_emptyRecords(): void
     {
-        // Mocks
-        /** @var ModelsServicePlan $modelMock */
-        $modelMock = Mockery::mock(ModelsServicePlan::class);
-        $modelMock->shouldReceive('get')
-            ->once()
-            ->withNoArgs()
-            ->andReturn(null);
-
         // Tests
-        $repos = new ServicePlanRepository($modelMock);
+        $repos = new ServicePlanRepository();
         $this->assertEquals(
             [],
             $repos->all()
