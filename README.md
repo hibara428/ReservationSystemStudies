@@ -1,6 +1,6 @@
 # ReservationSystemStudies
 
-![unit_test](https://github.com/hibara428/ReservationSystemStudies/actions/workflows/unit_test.yml/badge.svg)
+![test](https://github.com/hibara428/ReservationSystemStudies/actions/workflows/test.yml/badge.svg) ![deploy_service](https://github.com/hibara428/ReservationSystemStudies/actions/workflows/deploy_service.yml/badge.svg) ![build_dev_image](https://github.com/hibara428/ReservationSystemStudies/actions/workflows/build_dev_image.yml/badge.svg) ![deploy_cfn_templates](https://github.com/hibara428/ReservationSystemStudies/actions/workflows/deploy_cfn_templates.yml/badge.svg)
 
 The reservation system project to learn Laravel.
 
@@ -29,7 +29,7 @@ sail test
 - `reservation-system-studies-app-env`
 
 | ParameterName | Description |
-| --- | --- | --- |
+| --- | --- |
 | APP_KEY | env: APP_KEY |
 | DB_USERNAME | env: DB_USERNAME |
 | DB_PASSWORD | env: DB_PASSWORD |
