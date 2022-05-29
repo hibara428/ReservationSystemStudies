@@ -3,6 +3,7 @@ AWSTemplateFormatVersion: 2010-09-09
 Description: Fargate
 
 Parameters:
+  # Environment
   EnvironmentName:
     Type: String
     Description: Environment name - dev or prod
@@ -11,69 +12,44 @@ Parameters:
       - dev
       - prod
     ConstraintDescription: Specify either dev or prod
-
   NetworkStackName:
     Type: String
     Description: Name of an active CloudFormation stack that contains networking resources
     MinLength: 1
     MaxLength: 255
     AllowedPattern: "^[a-zA-Z][-a-zA-Z0-9]*$"
-
   AlbStackName:
     Type: String
     Description: Name of an active CloudFormation stack that contains ALB resources
     MinLength: 1
     MaxLength: 255
     AllowedPattern: "^[a-zA-Z][-a-zA-Z0-9]*$"
-
   RdsStackName:
     Type: String
     Description: Name of an optional active CloudFormation stack that contains RDS resources
     MinLength: 1
     MaxLength: 255
     AllowedPattern: "^[a-zA-Z][-a-zA-Z0-9]*$"
-
-  AppSecretId:
+  SecretsManagerStackName:
     Type: String
-    Description: The App secret ID of secrets manager
-
-  DatabaseSecretId:
+    Description: Name of an optional active CloudFormation stack that contains secrets manager resources
+    MinLength: 1
+    MaxLength: 255
+    AllowedPattern: "^[a-zA-Z][-a-zA-Z0-9]*$"
+  SecurityGroupStackName:
     Type: String
-    Description: The RDS secret ID of secrets manager
-
-  DockerRepositoryUri:
+    Description: Name of an optional active CloudFormation stack that contains secrets manager resources
+    MinLength: 1
+    MaxLength: 255
+    AllowedPattern: "^[a-zA-Z][-a-zA-Z0-9]*$"
+  EcrReposStackName:
     Type: String
-    Description: The URI of docker repository
+    Description: ECR repository stack name
+    MinLength: 1
+    MaxLength: 255
+    AllowedPattern: "^[a-zA-Z][-a-zA-Z0-9]*$"
 
-  DockerImageTag:
-    Type: String
-    Description: The tag of docker image.
-    Default: latest
-
-  ContainerCpu:
-    Type: Number
-    Description: "Amount of CPU for the container - options available: https://aws.amazon.com/fargate/pricing/"
-    Default: 256
-    MinValue: 256
-    MaxValue: 4096
-    ConstraintDescription: "Value must be between 256 and 4096 - see: https://docs.aws.amazon.com/AmazonECS/latest/developerguide/task_definition_parameters.html#task_size"
-
-  ContainerMemory:
-    Type: Number
-    Description: "Amount of memory for the container - options available: https://aws.amazon.com/fargate/pricing/"
-    Default: 512
-    MinValue: 512
-    MaxValue: 30720
-    ConstraintDescription: "Value must be between 512 and 30720 - see: https://aws.amazon.com/fargate/pricing/"
-
-  ContainerLogRetentionInDays:
-    Type: Number
-    Default: 7
-
-  HostName:
-    Type: String
-    Description: The host name
-
+  # Application globals
   AppProtocol:
     Type: String
     Description: The application server protocol
@@ -82,7 +58,6 @@ Parameters:
       - HTTP
       - HTTPS
     ConstraintDescription: Specify either HTTTP or HTTPS
-
   AppIngressPort:
     Description: The application ingress port used by security groups
     Type: Number
@@ -91,10 +66,30 @@ Parameters:
     ConstraintDescription: TCP ports must be between 0 - 65535
     Default: 80
 
-  AppSecurityGroup:
-    Type: AWS::EC2::SecurityGroup::Id
-    Description: The security group for ECS service.
+  # ECS Task definition
+  DockerImageTag:
+    Type: String
+    Description: The tag of docker image.
+    Default: latest
+  ContainerCpu:
+    Type: Number
+    Description: "Amount of CPU for the container - options available: https://aws.amazon.com/fargate/pricing/"
+    Default: 256
+    MinValue: 256
+    MaxValue: 4096
+    ConstraintDescription: "Value must be between 256 and 4096 - see: https://docs.aws.amazon.com/AmazonECS/latest/developerguide/task_definition_parameters.html#task_size"
+  ContainerMemory:
+    Type: Number
+    Description: "Amount of memory for the container - options available: https://aws.amazon.com/fargate/pricing/"
+    Default: 512
+    MinValue: 512
+    MaxValue: 30720
+    ConstraintDescription: "Value must be between 512 and 30720 - see: https://aws.amazon.com/fargate/pricing/"
+  ContainerLogRetentionInDays:
+    Type: Number
+    Default: 7
 
+  # ALB target group
   LBListenerPriority:
     Type: Number
     Description: The service load balancer listener priority
@@ -102,21 +97,20 @@ Parameters:
     MinValue: 2
     MaxValue: 50000
     ConstraintDescription: Number must be between 1 and 50,000
-
   HealthCheckPath:
     Type: String
     Description: The path for the Application Load Balancer health check
-    Default: /
+    Default: /api/health
     MinLength: 1
     MaxLength: 255
     ConstraintDescription: Value must be between 1 and 255 characters
 
+  # ECS auto scaling
   ServiceScaleEvaluationPeriods:
     Description: The number of periods over which data is compared to the specified threshold
     Type: Number
     Default: 2
     MinValue: 2
-
   ServiceCpuScaleOutThreshold:
     Type: Number
     Description: Average CPU value to trigger auto scaling out
@@ -124,7 +118,6 @@ Parameters:
     MinValue: 0
     MaxValue: 100
     ConstraintDescription: Value must be between 0 and 100
-
   ServiceCpuScaleInThreshold:
     Type: Number
     Description: Average CPU value to trigger auto scaling in
@@ -132,14 +125,12 @@ Parameters:
     MinValue: 0
     MaxValue: 100
     ConstraintDescription: Value must be between 0 and 100
-
   TaskMinContainerCount:
     Type: Number
     Description: Minimum number of containers to run for the service
     Default: 1
     MinValue: 1
     ConstraintDescription: Value must be at least one
-
   TaskMaxContainerCount:
     Type: Number
     Description: Maximum number of containers to run for the service when auto scaling out
@@ -174,10 +165,27 @@ Resources:
       ExecutionRoleArn: !GetAtt TaskExecutionRole.Arn
       ContainerDefinitions:
         - Name: !Sub ${AWS::StackName}-${EnvironmentName}
-          Image: !Sub ${DockerRepositoryUri}:${DockerImageTag}
+          Image: !Sub
+            - ${DockerRepositoryUri}:${DockerImageTag}
+            - DockerRepositoryUri:
+                Fn::ImportValue: !Sub ${EcrReposStackName}-EcrDockerRepositoryUri
+              DockerImageTag: !Ref DockerImageTag
           Essential: true
           PortMappings:
             - ContainerPort: !Ref AppIngressPort
+          Secrets:
+            - Name: APP_KEY
+              ValueFrom:
+                Fn::ImportValue: !Sub ${SecretsManagerStackName}-AppKeyArn
+            - Name: DB_DATABASE
+              ValueFrom:
+                Fn::ImportValue: !Sub ${SecretsManagerStackName}-DatabaseNameArn
+            - Name: DB_USERNAME
+              ValueFrom:
+                Fn::ImportValue: !Sub ${SecretsManagerStackName}-DatabaseUserNameArn
+            - Name: DB_PASSWORD
+              ValueFrom:
+                Fn::ImportValue: !Sub ${SecretsManagerStackName}-DatabasePasswordArn
           Environment:
             - Name: ENVIRONMENT_NAME
               Value: !Ref EnvironmentName
@@ -185,8 +193,6 @@ Resources:
               Value: ReservationSystemStudies
             - Name: APP_ENV
               Value: !If [ IsProd, "production", "development" ]
-            - Name: APP_KEY
-              Value: !Sub '{{resolve:secretsmanager:${AppSecretId}:SecretString:AppKey}}'
             - Name: APP_DEBUG
               Value: !If [ IsProd, true, false ]
             - Name: APP_URL
@@ -203,12 +209,6 @@ Resources:
             - Name: DB_PORT
               Value:
                 Fn::ImportValue: !Sub "${RdsStackName}-DatabasePort"
-            - Name: DB_DATABASE
-              Value: !Sub '{{resolve:secretsmanager:${DatabaseSecretId}:SecretString:DatabaseName}}'
-            - Name: DB_USERNAME
-              Value: !Sub '{{resolve:secretsmanager:${DatabaseSecretId}:SecretString:DatabaseMasterUser}}'
-            - Name: DB_PASSWORD
-              Value: !Sub '{{resolve:secretsmanager:${DatabaseSecretId}:SecretString:DatabaseMasterPassword}}'
             - Name: BROADCAST_DRIVER
               Value: log
           LogConfiguration:
@@ -237,6 +237,21 @@ Resources:
             Action: sts:AssumeRole
       ManagedPolicyArns:
         - arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy
+        - !Ref SecretsAccessPolicy
+
+  SecretsAccessPolicy:
+    Type: AWS::IAM::ManagedPolicy
+    Properties:
+      Description: Policy to access secrets
+      Path: /
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Action: secretsmanager:GetSecretValue
+            Resource:
+              - !Sub arn:aws:secretsmanager:${AWS::Region}:${AWS::AccountId}:secret:dev/ReservationSystemStudies/*
+              - !Sub arn:aws:secretsmanager:${AWS::Region}:${AWS::AccountId}:secret:prod/ReservationSystemStudies/*
 
   #----------------------------------------------
   # ECS service
@@ -257,7 +272,7 @@ Resources:
         AwsvpcConfiguration:
           AssignPublicIp: DISABLED
           SecurityGroups:
-            - !Ref AppSecurityGroup
+            - Fn::ImportValue: !Sub ${SecurityGroupStackName}-AppSecurityGroupID
           Subnets:
             - Fn::ImportValue: !Sub ${NetworkStackName}-PrivateSubnet1ID
             - Fn::ImportValue: !Sub ${NetworkStackName}-PrivateSubnet2ID
@@ -405,7 +420,7 @@ Resources:
       Conditions:
         - Field: host-header
           Values:
-            - !Ref HostName
+            - Fn::ImportValue: !Sub ${AlbStackName}-ApplicationLoadBalancerDnsName
       Actions:
         - TargetGroupArn: !Ref TargetGroup
           Type: forward

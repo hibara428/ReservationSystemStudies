@@ -5,9 +5,14 @@
 
 # Constants
 usage="Usage: ${0} create|update|delete"
-bucket_stack_name=reservation-system-studies-cfn-templates-bucket
-ecr_stack_name=reservation-system-studies-ecr-repos
+app_name=reservation-system-studies
+
+bucket_stack_name=${app_name}-cfn-templates-bucket
+bucket_name=${app_name}-cfn-templates
 bucket_template_file=./infra/cfn/templates/s3.cfn.yml
+
+ecr_stack_name=${app_name}-ecr-repos
+ecr_repos_name=${app_name}
 ecr_template_file=./infra/cfn/templates/ecr.cfn.yml
 
 # Parameters
@@ -23,12 +28,12 @@ if [ "${action}" = "create" ] || [ "${action}" = "update" ]; then
         --stack-name ${bucket_stack_name} \
         --template-body file://${bucket_template_file} \
         --parameters \
-            ParameterKey=BucketName,ParameterValue=reservation-system-studies-cfn-templates
+            ParameterKey=BucketName,ParameterValue=${bucket_name}
     aws cloudformation ${action}-stack \
         --stack-name ${ecr_stack_name} \
         --template-body file://${ecr_template_file} \
         --parameters \
-            ParameterKey=RepositoryName,ParameterValue=reservation-system-studies
+            ParameterKey=RepositoryName,ParameterValue=${ecr_repos_name}
 elif [ "${action}" = "delete" ]; then
     aws cloudformation delete-stack \
         --stack-name ${bucket_stack_name}
