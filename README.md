@@ -11,6 +11,18 @@ This is a sample project to learn Laravel.
 - PHP 8.1
 - Laravel 9
 
+## Preparation
+
+
+Creates following resources for development and deployment.
+
+- S3 bucket for CFn templates
+- ECR repository
+
+```sh
+./infra/bin/prepare.sh create
+```
+
 ## Development
 
 ```sh
@@ -22,50 +34,24 @@ sail test
 
 ## Deployment
 
-### Preparation
+### Prepare production image
 
-#### Secrets Manager
+When some tag is pushed, the [deploy_service](https://github.com/hibara428/ReservationSystemStudies/actions/workflows/deploy_service.yml) workflow runs and it builds and pushes the docker image of its tag to ECR repository.
 
-- `reservation-system-studies-app-env`
-
-| ParameterName | Description |
-| --- | --- |
-| APP_KEY | env: APP_KEY |
-| DB_USERNAME | env: DB_USERNAME |
-| DB_PASSWORD | env: DB_PASSWORD |
-| DB_DATABASE | env: DB_DATABASE |
-
-#### Creating a base infrastructure
-
-- S3 bucket for CFn templates
-- ECR repository
+### Build base infrastructure
 
 ```sh
-./infra/bin/prepare.sh create
+./infra/bin/deploy_env.sh create|update|delete APP_KEY [HOSTED_ZONE_NAME]
 ```
 
-#### Uploading CFn templates to S3
-
-- Performs [deploy_cfn_template](https://github.com/hibara428/ReservationSystemStudies/actions/workflows/deploy_cfn_templates.yml) workflow
-
-#### Building the docker image for development
-
-- Performs [build_dev_image](https://github.com/hibara428/ReservationSystemStudies/actions/workflows/build_dev_image.yml) workflow
-
-### Deploying the app services with CFn
-
-- Uploading the docker image for production to ECR repository.
-
-When some tag is pushed, a [deploy_service](https://github.com/hibara428/ReservationSystemStudies/actions/workflows/deploy_service.yml) workflow runs and it build and push the docker image of its tag.
-
-- Run the following command.
+### Deploy app (firstly)
 
 ```sh
-./infra/bin/deploy.sh create|update HOSTED_ZONE_ID [DOCKER_IMAGE_TAG]
+./infra/bin/deploy_app_base.sh create|update|delete [DOCKER_IMAGE_TAG]
 ```
 
 ### Continuous delivery
 
-This app deploys with GitHub Actions.
+This app can deploy with GitHub Actions workflows.
 
-Please check a [deploy_service](https://github.com/hibara428/ReservationSystemStudies/actions/workflows/deploy_service.yml) workflow and more workflows.
+Please check the [deploy_service](https://github.com/hibara428/ReservationSystemStudies/actions/workflows/deploy_service.yml) workflow.
