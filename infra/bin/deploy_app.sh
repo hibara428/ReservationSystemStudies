@@ -6,7 +6,7 @@
 usage="Usage: ${0} create|update|delete [DOCKER_IMAGE_TAG]"
 app_name=reservation-system-studies
 
-stack_name=${app_name}-app-base
+stack_name=${app_name}-app
 template_file=./infra/cfn/app.cfn.yml
 
 # Parameters

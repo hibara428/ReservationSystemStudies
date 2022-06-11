@@ -44,10 +44,10 @@ When some tag is pushed, the [deploy_service](https://github.com/hibara428/Reser
 ./infra/bin/deploy_env.sh create|update|delete APP_KEY [HOSTED_ZONE_NAME]
 ```
 
-### Deploy app (firstly)
+### Deploy app (initialize or update)
 
 ```sh
-./infra/bin/deploy_app_base.sh create|update|delete [DOCKER_IMAGE_TAG]
+./infra/bin/deploy_app.sh create|update|delete [DOCKER_IMAGE_TAG]
 ```
 
 ### Continuous delivery
