@@ -1,0 +1,32 @@
+name: update_service
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        type: string
+jobs:
+  update-service:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Configure AWS credentials
+      uses: aws-actions/configure-aws-credentials@05b148adc31e091bafbaf404f745055d4d3bc9d2
+      with:
+        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        aws-region: ${{ secrets.AWS_REGION }}
+    - name: Download task definition
+      run: |
+        aws ecs describe-task-definition --task-definition ${{ secrets.ECS_TASK_APP_FAMILY }} --query taskDefinition > /tmp/task-definition.json
+    - name: Fill in the new image ID in the ECS task definition
+      uses: aws-actions/amazon-ecs-render-task-definition@374ee96751fffe528c09b5f427848da60469bb55
+      with:
+        task-definition: /tmp/task-definition.json
+        container-name: ${{ secrets.ECS_TASK_APP_CONTAINER_NAME }}
+        image: ${{ secrets.ECR_REGISTRY }}/${{ secrets.ECR_REPOSITORY_NAME }}:${{ github.event.inputs.tag }}
+    - name: Deploy the ECS task definition
+      uses: aws-actions/amazon-ecs-deploy-task-definition@9c18d81893224634ac107b91720119c91c1d600e
+      with:
+        task-definition: ${{ steps.task-def.outputs.task-definition }}
+        service: ${{ env.ECS_SERVICE_NAME }}
+        cluster: ${{ env.ECS_CLUSTER_NAME }}
+        wait-for-service-stability: true
