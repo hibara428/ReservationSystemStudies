@@ -60,7 +60,15 @@ jobs:
         aws-region: ${{ secrets.AWS_REGION }}
     - name: Download task definition
       run: |
-        aws ecs describe-task-definition --task-definition ${{ secrets.ECS_TASK_APP_FAMILY }} --query taskDefinition > /tmp/task-definition.json
+        aws ecs describe-task-definition --task-definition ${{ secrets.ECS_TASK_APP_FAMILY }} --query taskDefinition | jq -r 'del(
+          .taskDefinitionArn,
+          .requiresAttributes,
+          .compatibilities,
+          .revision,
+          .status,
+          .registeredAt,
+          .registeredBy
+        )' > /tmp/task-definition.json
     - name: Fill in the new image ID in the Amazon ECS task definition
       uses: aws-actions/amazon-ecs-render-task-definition@374ee96751fffe528c09b5f427848da60469bb55
       id: task-def
