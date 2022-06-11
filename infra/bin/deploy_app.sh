@@ -6,7 +6,8 @@
 usage="Usage: ${0} create|update|delete [DOCKER_IMAGE_TAG]"
 app_name=reservation-system-studies
 
-stack_name=${app_name}-app-base
+stack_name=${app_name}-app
+bucket_name=${app_name}-cfn-templates
 template_file=./infra/cfn/app.cfn.yml
 
 # Parameters
@@ -19,6 +20,9 @@ docker_image_tag=${2:-latest}
 
 # CFn
 if [ "${action}" = "create" ] || [ "${action}" = "update" ]; then
+    # Copy CFn template files.
+    aws s3 cp --recursive ./infra/cfn/templates s3://${bucket_name}/templates
+    # Deploy with CFn template.
     aws cloudformation ${action}-stack \
         --stack-name ${stack_name} \
         --template-body file://${template_file} \

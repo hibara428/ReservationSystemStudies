@@ -88,6 +88,10 @@ Parameters:
   ContainerLogRetentionInDays:
     Type: Number
     Default: 7
+  AppContainerName:
+    Type: String
+    Description: The container name for app
+    Default: app
 
   # ALB target group
   LBListenerPriority:
@@ -164,7 +168,7 @@ Resources:
       NetworkMode: awsvpc
       ExecutionRoleArn: !GetAtt TaskExecutionRole.Arn
       ContainerDefinitions:
-        - Name: !Sub ${AWS::StackName}-${EnvironmentName}
+        - Name: !Ref AppContainerName
           Image: !Sub
             - ${DockerRepositoryUri}:${DockerImageTag}
             - DockerRepositoryUri:
@@ -265,7 +269,7 @@ Resources:
       LaunchType: FARGATE
       TaskDefinition: !Ref TaskDefinition
       LoadBalancers:
-        - ContainerName: !Sub ${AWS::StackName}-${EnvironmentName}
+        - ContainerName: !Ref AppContainerName
           ContainerPort: !Ref AppIngressPort
           TargetGroupArn: !Ref TargetGroup
       NetworkConfiguration:
