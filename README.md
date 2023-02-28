@@ -55,3 +55,5 @@ When some tag is pushed, the [deploy_service](https://github.com/hibara428/Reser
 This app can deploy with GitHub Actions workflows.
 
 Please check the [deploy_service](https://github.com/hibara428/ReservationSystemStudies/actions/workflows/deploy_service.yml) workflow.
+
+pr-test
